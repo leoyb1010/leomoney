@@ -229,6 +229,7 @@ async function selectStockFromSearch(symbol, sinaCode, category, name){
   document.getElementById('tradeQty').value=''; calcTotal();
   updateCurrentSymbolPanel();
 }
+function selectStock(symbol){
   selectedStock=getFilteredStocks().find(s=>s.symbol===symbol);
   if(!selectedStock) return;
   selectedIndex=null; generateCandles(symbol);
