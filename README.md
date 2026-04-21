@@ -2,6 +2,8 @@
 
 AI-Driven Simulated Trading Platform | AI 驱动模拟交易平台
 
+![Leomoney Screenshot](screenshot.png)
+
 ## Features
 
 - 📊 **全市场行情** — A股/港股/美股/贵金属/加密货币实时数据（新浪财经 API）
