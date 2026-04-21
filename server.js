@@ -58,6 +58,70 @@ app.get('/api/account', (req, res) => {
   res.json({ success: true, ...getAccount() });
 });
 
+// ===== 账户汇总（用现价计算真实市值，新增，不影响旧 API） =====
+app.get('/api/account/summary', async (req, res) => {
+  try {
+    const account = getAccount();
+    const quotes = await getQuotes();
+    // 构建现价映射
+    const priceMap = {};
+    ['astocks', 'hkstocks', 'usstocks', 'metals', 'crypto'].forEach(cat => {
+      (quotes[cat] || []).forEach(s => { priceMap[s.symbol] = s.price; });
+    });
+    // 用现价计算每只持仓市值
+    let holdingValue = 0;
+    const holdingDetails = [];
+    Object.entries(account.holdings).forEach(([sym, h]) => {
+      const latestPrice = priceMap[sym] ?? h.avgCost;
+      const marketValue = h.qty * latestPrice;
+      const costBasis = h.qty * h.avgCost;
+      const unrealizedPnL = marketValue - costBasis;
+      const unrealizedPnLRatio = costBasis > 0 ? (unrealizedPnL / costBasis * 100) : 0;
+      holdingValue += marketValue;
+      holdingDetails.push({
+        symbol: sym,
+        name: h.name,
+        qty: h.qty,
+        avgCost: h.avgCost,
+        latestPrice,
+        marketValue,
+        costBasis,
+        unrealizedPnL,
+        unrealizedPnLRatio,
+        isUp: unrealizedPnL >= 0,
+        category: h.category,
+      });
+    });
+    const totalAssets = account.balance + holdingValue;
+    const totalUnrealizedPnL = holdingDetails.reduce((sum, h) => sum + h.unrealizedPnL, 0);
+
+    // 今日收益（已实现+未实现变化，简化版用今日卖出总额）
+    const today = new Date().toISOString().slice(0, 10);
+    const todayTrades = (account.history || []).filter(t => t.time && t.time.startsWith(today));
+    let todayRealizedPnL = 0;
+    todayTrades.filter(t => t.type === 'sell').forEach(t => {
+      // 简化：卖出总额 - 对应买入成本
+      const h = account.holdings[t.symbol];
+      const avgCost = h ? h.avgCost : 0;
+      todayRealizedPnL += (t.price - avgCost) * t.qty;
+    });
+
+    res.json({
+      success: true,
+      cash: account.balance,
+      holdingValue,
+      totalAssets,
+      totalUnrealizedPnL,
+      todayRealizedPnL,
+      holdingCount: holdingDetails.length,
+      holdings: holdingDetails,
+      pendingOrders: account.pendingOrders,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.post('/api/trade/buy', (req, res) => {
   const { symbol, qty, price, strategy } = req.body;
   if (!symbol || !qty) return res.status(400).json({ success: false, error: '缺少参数: symbol, qty' });
@@ -155,7 +219,7 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   const status = getMarketStatus();
-  console.log(`\n🦁 Leomoney v1.1.0 已启动`);
+  console.log(`\n🦁 Leomoney v1.3.0 已启动`);
   console.log(`   地址: http://localhost:${PORT}`);
   console.log(`   A股: ${status.a.status} | 港股: ${status.hk.status} | 美股: ${status.us.status} | 加密: ${status.crypto.status}`);
   console.log(`   CLI:  node cli.js --help\n`);
