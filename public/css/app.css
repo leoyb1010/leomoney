@@ -233,3 +233,53 @@ body{font-family:var(--font-sans);background:var(--bg-primary);color:var(--text-
   .trade-grid{grid-template-columns:1fr}
   .portfolio-summary{grid-template-columns:1fr}
 }
+
+/* ===== Analysis View（新增，不改旧样式） ===== */
+.analysis-view{overflow-y:auto;padding:24px;background:var(--bg-primary)}
+.analysis-header{font-size:1.3rem;font-weight:700;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+.analysis-refresh-btn{background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary);padding:8px 16px;border-radius:var(--radius);cursor:pointer;font-family:var(--font-sans);font-size:.85rem;transition:all .2s}
+.analysis-refresh-btn:hover{border-color:var(--blue);color:var(--blue)}
+
+.metric-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.metric-card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:20px 24px;transition:border-color .2s}
+.metric-card:hover{border-color:var(--border-hover)}
+.metric-card-label{color:var(--text-secondary);font-size:.82rem;margin-bottom:10px;font-weight:500}
+.metric-card-value{font-family:var(--font-mono);font-size:1.6rem;font-weight:700;line-height:1.2}
+.metric-card-value.positive{color:var(--green)}
+.metric-card-value.negative{color:var(--red)}
+.metric-card-value.neutral{color:var(--text-primary)}
+.metric-card-sub{color:var(--text-muted);font-size:.78rem;margin-top:6px;font-family:var(--font-mono)}
+
+.analysis-charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.chart-card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.chart-card-title{padding:16px 20px 0;font-weight:600;font-size:.92rem;color:var(--text-secondary)}
+.chart-card-body{padding:16px;position:relative;height:220px}
+.chart-card-body canvas{width:100%!important;height:100%!important;display:block}
+
+.analysis-trade-list{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.atl-row{display:grid;grid-template-columns:60px 1fr 100px 100px 120px 100px;padding:12px 20px;border-bottom:1px solid var(--border);font-size:.85rem;align-items:center;transition:background .15s}
+.atl-row:hover{background:var(--bg-input)}
+.atl-row.header{color:var(--text-muted);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}
+.atl-row.header:hover{background:transparent}
+.atl-type{font-weight:700;border-radius:6px;text-align:center;padding:3px 0;font-size:.78rem}
+.atl-type.buy{background:var(--green-bg);color:var(--green)}
+.atl-type.sell{background:var(--red-bg);color:var(--red)}
+.atl-pnl{font-family:var(--font-mono);font-weight:600}
+.atl-pnl.positive{color:var(--green)}
+.atl-pnl.negative{color:var(--red)}
+.atl-detail{color:var(--text-secondary);font-family:var(--font-mono);font-size:.82rem}
+.atl-time{color:var(--text-muted);font-family:var(--font-mono);font-size:.78rem}
+.atl-strategy{font-size:.75rem;padding:2px 8px;border-radius:4px;background:var(--blue-bg);color:var(--blue)}
+
+/* Dashboard 顶部指标（追加，不改旧结构） */
+.dashboard-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.dash-stat{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 16px;display:flex;flex-direction:column;gap:4px}
+.dash-stat-label{color:var(--text-secondary);font-size:.78rem;font-weight:500}
+.dash-stat-value{font-family:var(--font-mono);font-weight:700;font-size:1.05rem}
+.dash-stat-value.positive{color:var(--green)}
+.dash-stat-value.negative{color:var(--red)}
+
+@media(max-width:900px){
+  .metric-cards{grid-template-columns:repeat(2,1fr)}
+  .analysis-charts{grid-template-columns:1fr}
+}

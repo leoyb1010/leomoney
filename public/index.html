@@ -52,6 +52,9 @@
     <div class="sidebar-item" data-view="history" onclick="switchView('history')">
       <div class="sidebar-icon">📋</div><div class="sidebar-label">记录</div>
     </div>
+    <div class="sidebar-item" data-view="analysis" onclick="switchView('analysis')">
+      <div class="sidebar-icon">🧠</div><div class="sidebar-label">分析</div>
+    </div>
     <div class="sidebar-spacer"></div>
   </div>
 
@@ -179,6 +182,35 @@
     <div class="view history-view" id="view-history">
       <div class="history-header">📋 成交记录</div>
       <div id="historyList"></div>
+    </div>
+
+    <!-- VIEW: Analysis -->
+    <div class="view analysis-view" id="view-analysis">
+      <div class="analysis-header">
+        <span>🧠 交易分析</span>
+        <button class="analysis-refresh-btn" onclick="loadAnalysis()">刷新</button>
+      </div>
+
+      <!-- 核心指标卡 -->
+      <div class="metric-cards" id="metricCards"></div>
+
+      <!-- 图表区 -->
+      <div class="analysis-charts">
+        <div class="chart-card">
+          <div class="chart-card-title">收益曲线</div>
+          <div class="chart-card-body"><canvas id="equityCanvas"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">盈亏分布</div>
+          <div class="chart-card-body"><canvas id="pnlDistCanvas"></canvas></div>
+        </div>
+      </div>
+
+      <!-- 交易列表 -->
+      <div class="analysis-trade-list">
+        <div class="chart-card-title" style="padding:16px 20px 8px">交易明细</div>
+        <div id="analysisTradeList"></div>
+      </div>
     </div>
 
   </div>
