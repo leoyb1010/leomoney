@@ -1,0 +1,374 @@
+/* ============================================
+ * Leomoney 基础组件样式
+ * v1.3.0 — 面板/卡片/按钮/状态/表单/列表
+ * 依赖 tokens.css
+ * ============================================ */
+
+/* ── 面板 ── */
+.panel {
+  background: var(--背景-卡片);
+  border: 1px solid var(--边框-默认);
+  border-radius: var(--圆角-大);
+  box-shadow: var(--阴影-轻);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--间距-3) var(--间距-5);
+  border-bottom: 1px solid var(--边框-默认);
+  background: var(--背景-面板);
+}
+
+.panel-body {
+  padding: var(--间距-5);
+}
+
+/* ── 指标卡 ── */
+.metric-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  border: 1px solid var(--边框-默认);
+  border-radius: var(--圆角-中);
+  padding: var(--间距-4);
+  transition: border-color var(--动效-快);
+}
+
+.metric-card:hover {
+  border-color: var(--边框-强调);
+}
+
+.metric-label {
+  color: var(--文字-次);
+  font-size: var(--字号-小);
+  font-weight: var(--字重-中等);
+  margin-bottom: var(--间距-2);
+}
+
+.metric-value {
+  color: var(--文字-主);
+  font-size: var(--字号-标题);
+  font-weight: var(--字重-极粗);
+  font-family: var(--字体-等宽);
+  line-height: 1.2;
+}
+
+.metric-value.positive { color: var(--颜色-买入); }
+.metric-value.negative { color: var(--颜色-卖出); }
+.metric-value.neutral  { color: var(--文字-主); }
+
+.metric-sub {
+  color: var(--文字-弱);
+  font-size: var(--字号-极小);
+  margin-top: var(--间距-1);
+  font-family: var(--字体-等宽);
+}
+
+/* ── 操作按钮 ── */
+.action-button {
+  border: none;
+  border-radius: var(--圆角-中);
+  padding: 10px 14px;
+  font-size: var(--字号-中);
+  font-weight: var(--字重-粗体);
+  font-family: var(--字体-正文);
+  cursor: pointer;
+  transition: transform var(--动效-快), opacity var(--动效-快), background var(--动效-快);
+  letter-spacing: 0.02em;
+}
+
+.action-button:hover {
+  transform: translateY(-1px);
+}
+
+.action-button:active {
+  transform: translateY(0);
+}
+
+.action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.action-button.buy {
+  background: var(--颜色-买入);
+  color: #fff;
+}
+
+.action-button.buy:hover:not(:disabled) {
+  background: #059669;
+}
+
+.action-button.sell {
+  background: var(--颜色-卖出);
+  color: #fff;
+}
+
+.action-button.sell:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.action-button.secondary {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--文字-主);
+  border: 1px solid var(--边框-默认);
+}
+
+.action-button.secondary:hover:not(:disabled) {
+  border-color: var(--颜色-信息);
+  color: var(--颜色-信息);
+}
+
+.action-button.order {
+  background: var(--颜色-信息);
+  color: #fff;
+}
+
+.action-button.order:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+/* ── 数据行 ── */
+.data-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--间距-2) 0;
+  border-bottom: 1px solid var(--边框-默认);
+  font-size: var(--字号-中);
+}
+
+.data-row:last-child {
+  border-bottom: none;
+}
+
+.data-row-label {
+  color: var(--文字-次);
+  font-size: var(--字号-小);
+}
+
+.data-row-value {
+  font-family: var(--字体-等宽);
+  font-weight: var(--字重-粗体);
+  color: var(--文字-主);
+}
+
+/* ── 标签 ── */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--圆角-小);
+  font-size: var(--字号-极小);
+  font-weight: var(--字重-中等);
+}
+
+.tag.buy   { background: var(--颜色-买入-底); color: var(--颜色-买入); }
+.tag.sell  { background: var(--颜色-卖出-底); color: var(--颜色-卖出); }
+.tag.warn  { background: var(--颜色-警告-底); color: var(--颜色-警告); }
+.tag.info  { background: var(--颜色-信息-底); color: var(--颜色-信息); }
+.tag.brand { background: var(--颜色-品牌-底); color: var(--颜色-品牌); }
+
+/* ── 状态徽标 ── */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--圆角-小);
+  font-size: var(--字号-极小);
+  font-weight: var(--字重-粗体);
+}
+
+.status-badge.open      { background: var(--颜色-买入-底); color: var(--颜色-买入); }
+.status-badge.closed    { background: var(--颜色-卖出-底); color: var(--颜色-卖出); }
+.status-badge.premarket { background: var(--颜色-警告-底); color: var(--颜色-警告); }
+.status-badge.pending   { background: var(--颜色-信息-底); color: var(--颜色-信息); }
+.status-badge.executed  { background: var(--颜色-品牌-底); color: var(--颜色-品牌); }
+.status-badge.cancelled { background: rgba(255,255,255,0.06); color: var(--文字-次); }
+
+/* ── 表单字段 ── */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-field-label {
+  color: var(--文字-次);
+  font-size: var(--字号-小);
+  font-weight: var(--字重-中等);
+}
+
+.form-field-input {
+  background: var(--背景-输入);
+  border: 1px solid var(--边框-默认);
+  color: var(--文字-主);
+  padding: 10px var(--间距-3);
+  border-radius: var(--圆角-中);
+  font-family: var(--字体-等宽);
+  font-size: var(--字号-大);
+  outline: none;
+  transition: border-color var(--动效-快);
+}
+
+.form-field-input:focus {
+  border-color: var(--颜色-信息);
+}
+
+.form-field-input[readonly] {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.form-field-input::placeholder {
+  color: var(--文字-弱);
+}
+
+.form-field-hint {
+  color: var(--文字-弱);
+  font-size: var(--字号-极小);
+  margin-top: var(--间距-1);
+}
+
+.form-field-error {
+  color: var(--颜色-卖出);
+  font-size: var(--字号-极小);
+  margin-top: var(--间距-1);
+}
+
+/* ── 输入组（标签+输入+预设按钮） ── */
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.input-group-presets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+
+.preset-btn {
+  background: var(--背景-输入);
+  border: 1px solid var(--边框-默认);
+  color: var(--文字-次);
+  padding: 7px;
+  border-radius: var(--圆角-中);
+  cursor: pointer;
+  font-family: var(--字体-等宽);
+  font-size: var(--字号-极小);
+  transition: all var(--动效-快);
+}
+
+.preset-btn:hover {
+  border-color: var(--颜色-信息);
+  color: var(--颜色-信息);
+}
+
+/* ── 四态：空/错/加载/成功 ── */
+.empty-state,
+.error-state,
+.loading-state,
+.success-state {
+  padding: var(--间距-8) var(--间距-5);
+  text-align: center;
+  color: var(--文字-次);
+}
+
+.empty-state__icon,
+.error-state__icon,
+.loading-state__icon,
+.success-state__icon {
+  font-size: 2rem;
+  margin-bottom: var(--间距-2);
+}
+
+.empty-state__text,
+.error-state__text,
+.loading-state__text,
+.success-state__text {
+  font-size: var(--字号-小);
+}
+
+.error-state {
+  color: var(--颜色-卖出);
+}
+
+.success-state {
+  color: var(--颜色-买入);
+}
+
+.loading-state__spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--边框-默认);
+  border-top-color: var(--颜色-信息);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-bottom: var(--间距-2);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── 列表项 ── */
+.list-item {
+  padding: var(--间距-3) var(--间距-4);
+  border-bottom: 1px solid var(--边框-默认);
+  transition: background var(--动效-快);
+  display: flex;
+  align-items: center;
+  gap: var(--间距-4);
+}
+
+.list-item:hover {
+  background: var(--背景-卡片);
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
+
+/* ── 系统消息容器 ── */
+.system-feedback {
+  position: fixed;
+  top: 70px;
+  right: 24px;
+  padding: var(--间距-3) var(--间距-5);
+  border-radius: var(--圆角-中);
+  font-weight: var(--字重-粗体);
+  z-index: 200;
+  transform: translateX(120%);
+  transition: transform var(--动效-标准);
+  max-width: 360px;
+  font-size: var(--字号-中);
+}
+
+.system-feedback.show {
+  transform: translateX(0);
+}
+
+.system-feedback.success {
+  background: var(--颜色-买入);
+  color: #fff;
+}
+
+.system-feedback.error {
+  background: var(--颜色-卖出);
+  color: #fff;
+}
+
+.system-feedback.info {
+  background: var(--颜色-信息);
+  color: #fff;
+}
+
+.system-feedback.warning {
+  background: var(--颜色-警告);
+  color: #fff;
+}
