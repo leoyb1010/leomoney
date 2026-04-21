@@ -1,0 +1,16 @@
+{
+  "name": "leomoney",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Leomoney - AI-Driven Simulated Trading Platform",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "cli": "node cli.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^4.22.1",
+    "iconv-lite": "^0.7.2"
+  }
+}

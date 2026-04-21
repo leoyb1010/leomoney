@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leomoney — 智能模拟交易</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">L</div>
+    <div class="logo-text">Leo<span>money</span></div>
+  </div>
+  <div class="header-right">
+    <div class="market-status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="marketLabel">检测中...</span>
+    </div>
+    <div class="balance-display">
+      <span class="balance-label">可用资金</span>
+      <span class="balance-value" id="headerBalance">¥1,000,000.00</span>
+    </div>
+    <button class="reset-btn" onclick="resetAccount()">重置账户</button>
+  </div>
+</div>
+
+<div class="index-bar" id="indexBar"></div>
+
+<div class="market-tabs" id="marketTabs">
+  <div class="market-tab active" data-cat="all" onclick="setMarketCategory('all')">全部</div>
+  <div class="market-tab" data-cat="astocks" onclick="setMarketCategory('astocks')">🇨🇳 A股</div>
+  <div class="market-tab" data-cat="hkstocks" onclick="setMarketCategory('hkstocks')">🇭🇰 港股</div>
+  <div class="market-tab" data-cat="usstocks" onclick="setMarketCategory('usstocks')">🇺🇸 美股</div>
+  <div class="market-tab" data-cat="metals" onclick="setMarketCategory('metals')">🥇 贵金属</div>
+  <div class="market-tab" data-cat="crypto" onclick="setMarketCategory('crypto')">₿ 加密</div>
+</div>
+
+<div class="main-layout">
+  <div class="sidebar">
+    <div class="sidebar-item active" data-view="quotes" onclick="switchView('quotes')">
+      <div class="sidebar-icon">📈</div><div class="sidebar-label">行情</div>
+    </div>
+    <div class="sidebar-item" data-view="trade" onclick="switchView('trade')">
+      <div class="sidebar-icon">💰</div><div class="sidebar-label">交易</div>
+    </div>
+    <div class="sidebar-item" data-view="portfolio" onclick="switchView('portfolio')">
+      <div class="sidebar-icon">📁</div><div class="sidebar-label">持仓</div>
+    </div>
+    <div class="sidebar-item" data-view="history" onclick="switchView('history')">
+      <div class="sidebar-icon">📋</div><div class="sidebar-label">记录</div>
+    </div>
+    <div class="sidebar-spacer"></div>
+  </div>
+
+  <div class="content-area">
+
+    <!-- VIEW: Quotes -->
+    <div class="view quotes-view active" id="view-quotes">
+      <div class="quotes-left">
+        <div class="panel-header"><div style="font-weight:600;font-size:.92rem">📊 自选行情</div></div>
+        <div class="search-box">
+          <input type="text" class="search-input" id="searchInput" placeholder="搜索股票名称/代码..." oninput="filterStocks(this.value)">
+        </div>
+        <div class="frozen-indicator" id="frozenIndicator" style="display:none">
+          <div class="dot"></div><span>市场已休，行情冻结在收盘价</span>
+        </div>
+        <div class="watchlist" id="watchlist"></div>
+      </div>
+      <div class="quotes-center">
+        <div class="chart-header">
+          <div class="chart-stock-info">
+            <div>
+              <div class="chart-stock-name" id="chartName">--</div>
+              <div style="color:var(--text-secondary);font-size:.82rem" id="chartSymbol">--</div>
+            </div>
+            <div>
+              <div class="chart-stock-price" id="chartPrice">--</div>
+              <div class="chart-stock-change" id="chartChange">--</div>
+            </div>
+          </div>
+          <div class="chart-timeframes">
+            <button class="tf-btn" data-tf="1" onclick="setTimeframe(1)">1分</button>
+            <button class="tf-btn active" data-tf="5" onclick="setTimeframe(5)">5分</button>
+            <button class="tf-btn" data-tf="15" onclick="setTimeframe(15)">15分</button>
+            <button class="tf-btn" data-tf="60" onclick="setTimeframe(60)">1时</button>
+            <button class="tf-btn" data-tf="D" onclick="setTimeframe('D')">日线</button>
+          </div>
+        </div>
+        <div class="chart-container"><canvas id="chartCanvas" class="chart-canvas"></canvas></div>
+        <div class="chart-stats">
+          <div class="stat-item"><div class="stat-label">今开</div><div class="stat-value" id="statOpen">--</div></div>
+          <div class="stat-item"><div class="stat-label">最高</div><div class="stat-value" id="statHigh">--</div></div>
+          <div class="stat-item"><div class="stat-label">最低</div><div class="stat-value" id="statLow">--</div></div>
+          <div class="stat-item"><div class="stat-label">昨收</div><div class="stat-value" id="statPrev">--</div></div>
+        </div>
+      </div>
+      <div class="quotes-right trade-panel">
+        <div class="trade-tabs">
+          <div class="trade-tab buy active" onclick="setTradeType('buy')">买入</div>
+          <div class="trade-tab sell" onclick="setTradeType('sell')">卖出</div>
+          <div class="trade-tab order" onclick="setTradeType('order')">条件单</div>
+        </div>
+        <!-- Buy/Sell Form -->
+        <div class="trade-form" id="tradeFormSpot">
+          <div class="form-group"><label class="form-label">股票代码</label><input type="text" class="form-input" id="tradeSymbol" readonly value="--"></div>
+          <div class="form-group"><label class="form-label">委托价格</label><input type="number" class="form-input" id="tradePrice" step="0.01" placeholder="限价"></div>
+          <div class="form-group">
+            <label class="form-label">委托数量（股）</label>
+            <input type="number" class="form-input" id="tradeQty" step="100" min="100" placeholder="100的整数倍" oninput="calcTotal()">
+            <div class="quantity-presets">
+              <button class="preset-btn" onclick="setQty(100)">100</button>
+              <button class="preset-btn" onclick="setQty(500)">500</button>
+              <button class="preset-btn" onclick="setQty(1000)">1000</button>
+              <button class="preset-btn" onclick="setQtyMax()">全仓</button>
+            </div>
+          </div>
+          <div class="trade-total"><span class="trade-total-label">预估金额</span><span class="trade-total-value" id="tradeTotal">¥0.00</span></div>
+          <button class="submit-btn buy-btn" id="submitBtn" onclick="submitOrder()" disabled>买入</button>
+        </div>
+        <!-- Conditional Order Form -->
+        <div class="trade-form" id="tradeFormOrder" style="display:none">
+          <div class="form-group"><label class="form-label">股票代码</label><input type="text" class="form-input" id="orderSymbol" readonly value="--"></div>
+          <div class="form-group">
+            <label class="form-label">触发条件</label>
+            <select class="form-select" id="orderTriggerType">
+              <option value="gte">价格 ≥ 触发价（涨到位）</option>
+              <option value="lte">价格 ≤ 触发价（跌到位）</option>
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">触发价格</label><input type="number" class="form-input" id="orderTriggerPrice" step="0.01" placeholder="如 1700"></div>
+          <div class="form-group">
+            <label class="form-label">买卖方向</label>
+            <select class="form-select" id="orderDir">
+              <option value="buy">买入</option>
+              <option value="sell">卖出</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">委托数量（股）</label>
+            <input type="number" class="form-input" id="orderQty" step="100" min="100" placeholder="100的整数倍">
+          </div>
+          <button class="submit-btn order-btn" onclick="submitOrderCondition()">创建条件单</button>
+          <div style="margin-top:12px;font-size:.82rem;color:var(--text-secondary)">系统每5秒检查触发条件，满足时自动执行</div>
+          <div class="order-list" id="orderList" style="margin-top:12px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW: Trade -->
+    <div class="view trade-view" id="view-trade">
+      <div class="trade-view-header">💰 快捷交易（支持全市场）</div>
+      <div class="trade-grid">
+        <div>
+          <div class="form-group" style="margin-bottom:14px"><label class="form-label">资产代码</label><input type="text" class="form-input" id="quickSymbol" placeholder="如 600519 / BTC / XAU" oninput="quickLookup()"></div>
+          <div class="quick-quote-card" id="quickQuoteResult"><div class="empty-state"><p>输入代码查看行情</p></div></div>
+        </div>
+        <div>
+          <div class="form-group" style="margin-bottom:14px"><label class="form-label">委托价格</label><input type="number" class="form-input" id="quickPrice" step="0.01" placeholder="限价"></div>
+          <div class="form-group" style="margin-bottom:14px"><label class="form-label">委托数量</label><input type="number" class="form-input" id="quickQty" step="100" min="100" placeholder="100的整数倍"></div>
+          <div style="display:flex;gap:10px">
+            <button class="submit-btn buy-btn" style="flex:1" onclick="quickTrade('buy')">买入</button>
+            <button class="submit-btn sell-btn" style="flex:1" onclick="quickTrade('sell')">卖出</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW: Portfolio -->
+    <div class="view portfolio-view" id="view-portfolio">
+      <div class="portfolio-header"><span>📁 持仓管理</span></div>
+      <div class="portfolio-summary" id="portfolioSummary"></div>
+      <div id="portfolioList"></div>
+    </div>
+
+    <!-- VIEW: History -->
+    <div class="view history-view" id="view-history">
+      <div class="history-header">📋 成交记录</div>
+      <div id="historyList"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="notification" id="notification"></div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
