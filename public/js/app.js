@@ -1,8 +1,9 @@
-/* Leomoney Frontend - 多市场 + 条件单 + 全市场搜索 */
+/* Leomoney Frontend v1.3.0 — 多市场 + 条件单 + 全市场搜索 + Agent适配 */
 const API = '';
 let marketStatus = { isOpen: false, status: '检测中' };
 let quotesData = { indices: [], astocks: [], hkstocks: [], usstocks: [], metals: [], crypto: [], ts: 0 };
 let accountData = { balance: 1000000, holdings: {}, history: [], pendingOrders: [] };
+let accountSummary = null; // /api/account/summary 缓存
 let currentView = 'quotes';
 let currentMarketCat = 'all';
 let selectedStock = null;
@@ -11,8 +12,9 @@ let tradeType = 'buy';
 let timeframe = 5;
 let candles = {};
 let searchFilter = '';
-let searchResults = []; // 全市场搜索结果缓存
+let searchResults = [];
 let searchTimer = null;
+let historyFilter = 'all'; // 成交筛选
 
 function formatPrice(p){ return p!=null ? p.toFixed(2) : '--'; }
 function formatMoney(m){ return '¥'+m.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
@@ -225,9 +227,8 @@ async function selectStockFromSearch(symbol, sinaCode, category, name){
   document.getElementById('tradePrice').value=selectedStock.price.toFixed(2);
   document.getElementById('orderSymbol').value=selectedStock.symbol+' '+selectedStock.name;
   document.getElementById('tradeQty').value=''; calcTotal();
+  updateCurrentSymbolPanel();
 }
-
-function selectStock(symbol){
   selectedStock=getFilteredStocks().find(s=>s.symbol===symbol);
   if(!selectedStock) return;
   selectedIndex=null; generateCandles(symbol);
@@ -236,6 +237,7 @@ function selectStock(symbol){
   document.getElementById('tradePrice').value=selectedStock.price.toFixed(2);
   document.getElementById('orderSymbol').value=selectedStock.symbol+' '+selectedStock.name;
   document.getElementById('tradeQty').value=''; calcTotal();
+  updateCurrentSymbolPanel();
 }
 
 /* ===== CHART ===== */
@@ -439,7 +441,13 @@ function setTradeType(type){
   } else {
     if(spot) spot.style.display='flex';
     if(order) order.style.display='none';
-    if(btn){ btn.className=`submit-btn ${type}-btn`; btn.textContent=type==='buy'?'买入':'卖出'; }
+    if(btn){
+      btn.className=`submit-btn ${type}-btn action-button ${type}`;
+      btn.textContent=type==='buy'?'买入下单':'卖出下单';
+      btn.setAttribute('data-side',type);
+      btn.setAttribute('aria-label',type==='buy'?'买入下单':'卖出下单');
+      btn.setAttribute('data-testid',type==='buy'?'submit-buy-order':'submit-sell-order');
+    }
   }
   calcTotal();
 }
@@ -454,16 +462,71 @@ function calcTotal(){
   const price=parseFloat(document.getElementById('tradePrice').value)||0;
   const qty=parseInt(document.getElementById('tradeQty').value)||0;
   document.getElementById('tradeTotal').textContent=formatMoney(price*qty);
-  document.getElementById('submitBtn').disabled=!price||!qty||qty%100!==0;
+  const valid=price&&qty&&qty%100===0;
+  document.getElementById('submitBtn').disabled=!valid;
+  // 校验提示
+  const validationEl=document.getElementById('tradeValidation');
+  if(validationEl){
+    if(!valid&&qty>0){
+      if(qty%100!==0) validationEl.textContent='数量必须为100的整数倍';
+      else if(!price) validationEl.textContent='请输入委托价格';
+      validationEl.className='trade-validation error';
+    } else if(valid){
+      // 可买/可卖提示
+      const total=price*qty;
+      if(tradeType==='buy'){
+        if(total>accountData.balance) validationEl.textContent=`资金不足，需 ${formatMoney(total)}，可用 ${formatMoney(accountData.balance)}`;
+        else validationEl.textContent='';
+        validationEl.className=total>accountData.balance?'trade-validation error':'trade-validation';
+      } else {
+        const h=accountData.holdings[selectedStock?.symbol];
+        if(h&&qty>h.qty) validationEl.textContent=`可卖不足，持有 ${h?.qty||0} 股`;
+        else validationEl.textContent='';
+        validationEl.className=(h&&qty>h.qty)?'trade-validation error':'trade-validation';
+      }
+    } else { validationEl.textContent=''; validationEl.className='trade-validation'; }
+  }
+  // 可买/可卖数量提示
+  const hintEl=document.getElementById('qtyHint');
+  if(hintEl&&selectedStock){
+    if(tradeType==='buy'){
+      const maxBuy=Math.floor(accountData.balance/selectedStock.price/100)*100;
+      hintEl.textContent=`可买 ${Math.max(0,maxBuy)} 股`;
+    } else {
+      const h=accountData.holdings[selectedStock?.symbol];
+      hintEl.textContent=`可卖 ${h?h.qty:0} 股`;
+    }
+  }
 }
 async function submitOrder(){
   if(!selectedStock) return;
   const price=parseFloat(document.getElementById('tradePrice').value);
   const qty=parseInt(document.getElementById('tradeQty').value);
-  if(!price||!qty||qty%100!==0){ notify('请输入有效价格和数量（100的整数倍）','error'); return; }
+  // 校验
+  const validationEl=document.getElementById('tradeValidation');
+  if(!price||!qty||qty%100!==0){
+    const msg='请输入有效价格和数量（100的整数倍）';
+    if(validationEl){ validationEl.textContent=msg; validationEl.className='trade-validation error'; }
+    notify(msg,'error'); return;
+  }
   const result=await apiPost(`/api/trade/${tradeType}`,{symbol:selectedStock.symbol,qty,price});
-  if(result&&result.success){ notify(result.message,'success'); await refreshAccount(); if(tradeType==='sell'){document.getElementById('tradeQty').value='';calcTotal();} }
-  else notify(result?.error||'交易失败','error');
+  if(result&&result.success){
+    const msg=tradeType==='buy'?'买入下单成功':'卖出下单成功';
+    notify(msg,'success');
+    if(validationEl){ validationEl.textContent=msg; validationEl.className='trade-validation success'; }
+    await refreshAccount();
+    await refreshAccountSummary();
+    if(tradeType==='sell'){document.getElementById('tradeQty').value='';calcTotal();}
+    // 刷新持仓和当前标的
+    updateCurrentSymbolHolding();
+    if(currentView==='portfolio') renderPortfolioView();
+    if(currentView==='history') renderHistoryView();
+  } else {
+    const errMsg=result?.error||'下单失败：未知错误';
+    notify(errMsg,'error');
+    if(validationEl){ validationEl.textContent=errMsg; validationEl.className='trade-validation error'; }
+    // 失败保留输入，不清空
+  }
 }
 
 /* ===== CONDITIONAL ORDERS ===== */
@@ -475,8 +538,8 @@ async function submitOrderCondition(){
   const dir=document.getElementById('orderDir').value;
   if(!triggerPrice||!qty||qty%100!==0){ notify('请填写完整信息','error'); return; }
   const result=await apiPost('/api/orders',{symbol:selectedStock.symbol,name:selectedStock.name,type:dir,triggerType,triggerPrice,qty});
-  if(result&&result.success){ notify('条件单已创建','success'); document.getElementById('orderTriggerPrice').value=''; document.getElementById('orderQty').value=''; await refreshAccount(); }
-  else notify(result?.error||'创建失败','error');
+  if(result&&result.success){ notify('条件单创建成功','success'); document.getElementById('orderTriggerPrice').value=''; document.getElementById('orderQty').value=''; await refreshAccount(); }
+  else notify(result?.error||'条件单创建失败','error');
 }
 function renderOrderList(){
   const el=document.getElementById('orderList');
@@ -487,14 +550,14 @@ function renderOrderList(){
     const sign=o.triggerType==='gte'?'≥':'≤';
     return `<div class="order-item">
       <span class="order-item-info">${o.name} ${o.type==='buy'?'买入':'卖出'} ${o.qty}股 触发:${sign}${o.triggerPrice}</span>
-      <div class="order-item-actions"><button class="order-btn-delete" onclick="cancelOrder('${o.id}')">删除</button></div>
+      <div class="order-item-actions"><button class="order-btn-delete" data-testid="cancel-order" data-role="cancel-order" aria-label="取消条件单" onclick="cancelOrder('${o.id}')">取消条件单</button></div>
     </div>`;
   }).join('');
 }
 async function cancelOrder(id){
   try{
     await fetch(`${API}/api/orders/${id}`,{method:'DELETE'});
-    notify('条件单已取消','info'); await refreshAccount();
+    notify('条件单取消成功','info'); await refreshAccount();
   }catch(e){ notify('取消失败','error'); }
 }
 
@@ -538,14 +601,65 @@ async function quickTrade(type){
   const qty=parseInt(document.getElementById('quickQty').value);
   if(!sym||!qty||qty%100!==0){ notify('请填写完整信息','error'); return; }
   const result=await apiPost(`/api/trade/${type}`,{symbol:sym,qty,price});
-  if(result&&result.success){ notify(result.message,'success'); document.getElementById('quickQty').value=''; await refreshAccount(); }
-  else notify(result?.error||'交易失败','error');
+  if(result&&result.success){
+    notify(type==='buy'?'买入下单成功':'卖出下单成功','success');
+    document.getElementById('quickQty').value='';
+    await refreshAccount();
+    await refreshAccountSummary();
+  }
+  else notify(result?.error||'下单失败','error');
 }
 
-/* ===== PORTFOLIO VIEW ===== */
+/* ===== PORTFOLIO VIEW（使用 /api/account/summary 统一口径） ===== */
+async function refreshAccountSummary(){
+  const d=await apiGet('/api/account/summary');
+  if(d&&d.success) accountSummary=d;
+}
 function renderPortfolioView(){
   const summary=document.getElementById('portfolioSummary');
   const list=document.getElementById('portfolioList');
+
+  if(accountSummary){
+    // 用统一汇总数据
+    const s=accountSummary;
+    summary.innerHTML=`
+      <div class="summary-card" data-testid="metric-total-assets" data-role="account-metric" data-metric="total-assets">
+        <div class="summary-label">总资产</div><div class="summary-value">${formatMoney(s.totalAssets)}</div>
+      </div>
+      <div class="summary-card" data-testid="metric-cash" data-role="account-metric" data-metric="cash">
+        <div class="summary-label">可用资金</div><div class="summary-value" style="color:var(--颜色-买入)">${formatMoney(s.cash)}</div>
+      </div>
+      <div class="summary-card" data-testid="metric-market-value" data-role="account-metric" data-metric="market-value">
+        <div class="summary-label">持仓市值</div><div class="summary-value" style="color:var(--颜色-信息)">${formatMoney(s.holdingValue)}</div>
+      </div>
+      <div class="summary-card" data-testid="metric-unrealized-pnl" data-role="account-metric" data-metric="unrealized-pnl">
+        <div class="summary-label">未实现盈亏</div><div class="summary-value" style="color:${s.totalUnrealizedPnL>=0?'var(--颜色-买入)':'var(--颜色-卖出)'}">${s.totalUnrealizedPnL>=0?'+':''}${s.totalUnrealizedPnL.toFixed(2)}</div>
+      </div>
+      <div class="summary-card" data-testid="metric-today-pnl" data-role="account-metric" data-metric="today-pnl">
+        <div class="summary-label">今日收益</div><div class="summary-value" style="color:${s.todayRealizedPnL>=0?'var(--颜色-买入)':'var(--颜色-卖出)'}">${s.todayRealizedPnL>=0?'+':''}${s.todayRealizedPnL.toFixed(2)}</div>
+      </div>
+      <div class="summary-card" data-testid="metric-holding-count" data-role="account-metric" data-metric="holding-count">
+        <div class="summary-label">持仓数量</div><div class="summary-value">${s.holdingCount} 只</div>
+      </div>`;
+
+    if(!s.holdings||s.holdings.length===0){
+      list.innerHTML='<div class="empty-state" data-role="empty-state"><div class="empty-state__icon">📭</div><div class="empty-state__text">暂无持仓</div></div>'; return;
+    }
+    list.innerHTML=s.holdings.map(h=>{
+      return `<div class="holding-card" data-testid="holding-item" data-role="holding-item" data-symbol="${h.symbol}" onclick="jumpToStock('${h.symbol}')"><div class="holding-left">
+        <div class="holding-name">${h.name||h.symbol} (${h.symbol})</div>
+        <div class="holding-detail">${formatQty(h.qty)}股 · 成本 ${h.avgCost.toFixed(2)} · 现价 ${h.latestPrice.toFixed(2)}</div>
+        <div class="holding-detail">市值 ${formatMoney(h.marketValue)}</div>
+      </div><div class="holding-right">
+        <div class="holding-pnl ${h.isUp?'up':'down'}">${h.isUp?'+':''}${h.unrealizedPnL.toFixed(2)}</div>
+        <div class="holding-pct ${h.isUp?'up':'down'}">${h.isUp?'+':''}${h.unrealizedPnLRatio.toFixed(2)}%</div>
+        <div style="font-size:var(--字号-极小);color:var(--文字-弱);margin-top:2px">${h.isUp?'上涨':'下跌'}</div>
+      </div></div>`;
+    }).join('');
+    return;
+  }
+
+  // 兜底：如果 summary 还没加载，用旧逻辑
   const keys=Object.keys(accountData.holdings);
   let holdingValue=0;
   keys.forEach(sym=>{
@@ -555,20 +669,21 @@ function renderPortfolioView(){
   });
   const totalAssets=accountData.balance+holdingValue;
   summary.innerHTML=`<div class="summary-card"><div class="summary-label">总资产</div><div class="summary-value">${formatMoney(totalAssets)}</div></div>
-    <div class="summary-card"><div class="summary-label">可用资金</div><div class="summary-value" style="color:var(--green)">${formatMoney(accountData.balance)}</div></div>
-    <div class="summary-card"><div class="summary-label">持仓市值</div><div class="summary-value" style="color:var(--blue)">${formatMoney(holdingValue)}</div></div>`;
+    <div class="summary-card"><div class="summary-label">可用资金</div><div class="summary-value" style="color:var(--颜色-买入)">${formatMoney(accountData.balance)}</div></div>
+    <div class="summary-card"><div class="summary-label">持仓市值</div><div class="summary-value" style="color:var(--颜色-信息)">${formatMoney(holdingValue)}</div></div>`;
   if(keys.length===0){ list.innerHTML='<div class="empty-state"><div class="icon">📭</div><p>暂无持仓</p></div>'; return; }
   list.innerHTML=keys.map(sym=>{
     const h=accountData.holdings[sym]; const stock=getFilteredStocks().find(s=>s.symbol===sym);
     const current=stock?stock.price:h.avgCost;
     const pnl=(current-h.avgCost)*h.qty; const pnlPct=((current-h.avgCost)/h.avgCost*100)||0;
     const isUp=pnl>=0;
-    return `<div class="holding-card" onclick="jumpToStock('${sym}')"><div class="holding-left">
+    return `<div class="holding-card" data-testid="holding-item" data-symbol="${sym}" onclick="jumpToStock('${sym}')"><div class="holding-left">
       <div class="holding-name">${h.name||sym} (${sym})</div>
       <div class="holding-detail">${formatQty(h.qty)}股 · 成本 ${h.avgCost.toFixed(2)} · 现价 ${current.toFixed(2)}</div>
     </div><div class="holding-right">
       <div class="holding-pnl ${isUp?'up':'down'}">${isUp?'+':''}${pnl.toFixed(2)}</div>
       <div class="holding-pct ${isUp?'up':'down'}">${isUp?'+':''}${pnlPct.toFixed(2)}%</div>
+      <div style="font-size:var(--字号-极小);color:var(--文字-弱);margin-top:2px">${isUp?'上涨':'下跌'}</div>
     </div></div>`;
   }).join('');
 }
@@ -578,15 +693,27 @@ function jumpToStock(sym){
 }
 
 /* ===== HISTORY VIEW ===== */
+function filterHistory(type){
+  historyFilter=type;
+  document.querySelectorAll('.history-filter .preset-btn').forEach(b=>{
+    b.classList.toggle('active',b.getAttribute('data-filter')===type);
+  });
+  renderHistoryView();
+}
 function renderHistoryView(){
   const list=document.getElementById('historyList');
-  if(!accountData.history||!accountData.history.length){ list.innerHTML='<div class="empty-state"><div class="icon">📝</div><p>暂无成交记录</p></div>'; return; }
-  list.innerHTML=accountData.history.slice(0,100).map(h=>{
+  let trades=accountData.history||[];
+  // 筛选
+  if(historyFilter!=='all') trades=trades.filter(t=>t.type===historyFilter);
+
+  if(!trades.length){ list.innerHTML='<div class="empty-state" data-role="empty-state"><div class="empty-state__icon">📝</div><div class="empty-state__text">暂无成交记录</div></div>'; return; }
+  list.innerHTML=trades.slice(0,100).map(h=>{
     const d=new Date(h.time);
     const timeStr=isNaN(d)?h.time:d.toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
     const unit = h.unit || '股';
-    return `<div class="history-item">
-      <span class="history-type ${h.type}">${h.type==='buy'?'买入':'卖出'}</span>
+    const dirText=h.type==='buy'?'买入':'卖出';
+    return `<div class="history-item" data-testid="history-item" data-role="history-item" data-side="${h.type}" data-symbol="${h.symbol}" data-status="success">
+      <span class="history-type ${h.type}">${dirText}</span>
       <span class="history-detail">${h.name} ${formatQty(h.qty)}${unit} @ ${h.price.toFixed(2)}</span>
       <div class="history-amount"><div class="history-amount-value">${formatMoney(h.total)}</div><div class="history-time">${timeStr}</div></div>
     </div>`;
@@ -602,9 +729,17 @@ async function resetAccount(){
   }
 }
 function notify(msg,type='info'){
+  // 旧通知区（兼容）
   const el=document.getElementById('notification');
   el.textContent=msg; el.className=`notification ${type} show`;
   setTimeout(()=>el.classList.remove('show'),3000);
+  // 新系统消息区（Agent 可读）
+  const fb=document.getElementById('system-feedback');
+  if(fb){
+    fb.textContent=msg;
+    fb.className=`system-feedback ${type} show`;
+    setTimeout(()=>fb.classList.remove('show'),3500);
+  }
 }
 
 /* ===== TICK ===== */
@@ -615,6 +750,8 @@ async function tick(){
   if(marketStatus.isOpen){
     await apiPost('/api/orders/check');
   }
+  // 每30秒刷新一次汇总（避免太频繁）
+  if(Date.now()%30000<6000) await refreshAccountSummary();
 }
 
 /* ===== ANALYSIS VIEW（新增，不改旧逻辑） ===== */
@@ -625,6 +762,7 @@ async function loadAnalysis(){
   if(!d || !d.success){ document.getElementById('metricCards').innerHTML='<div class="empty-state"><p>加载分析数据失败</p></div>'; return; }
   analysisData = d;
   renderMetricCards(d.总结);
+  renderInsights(d.总结.表现);
   renderEquityCurve(d.分析.盈亏明细);
   renderPnlDist(d.分析.盈亏明细);
   renderAnalysisTradeList(d.分析.盈亏明细);
@@ -858,11 +996,78 @@ function renderDashboardStats(){
     <div class="dash-stat"><div class="dash-stat-label">风险状态</div><div class="dash-stat-value ${riskClass}">${riskLabel}</div></div>`;
 }
 
+/* ===== 当前标的强化区 ===== */
+function updateCurrentSymbolPanel(){
+  const panel=document.getElementById('currentSymbolPanel');
+  if(!panel) return;
+  if(!selectedStock){ panel.style.display='none'; return; }
+  panel.style.display='block';
+  panel.setAttribute('data-symbol',selectedStock.symbol);
+
+  const change=selectedStock.price-(selectedStock.prevClose||selectedStock.price);
+  const pct=(change/(selectedStock.prevClose||selectedStock.price)*100)||0;
+  const isUp=change>=0;
+  const cur=selectedStock.currency==='USD'?'$':'¥';
+  const dirText=isUp?'上涨':'下跌';
+
+  document.getElementById('csName').textContent=selectedStock.name;
+  document.getElementById('csCode').textContent=selectedStock.symbol+' · '+(selectedStock.sector||'');
+  document.getElementById('csPrice').textContent=cur+selectedStock.price.toFixed(2);
+  document.getElementById('csPrice').style.color=isUp?'var(--颜色-买入)':'var(--颜色-卖出)';
+
+  const changeEl=document.getElementById('csChange');
+  changeEl.textContent=`${isUp?'+':''}${change.toFixed(2)} (${isUp?'+':''}${pct.toFixed(2)}%)`;
+  changeEl.className=`current-symbol-change ${isUp?'up':'down'}`;
+
+  const dirEl=document.getElementById('csDirection');
+  dirEl.textContent=dirText;
+  dirEl.className=`current-symbol-direction ${isUp?'up':'down'}`;
+
+  updateCurrentSymbolHolding();
+}
+
+function updateCurrentSymbolHolding(){
+  const el=document.getElementById('csHolding');
+  if(!el||!selectedStock) return;
+  const h=accountData.holdings[selectedStock.symbol];
+  if(h){
+    const cur=selectedStock.currency==='USD'?'$':'¥';
+    const pnl=(selectedStock.price-h.avgCost)*h.qty;
+    const isUp=pnl>=0;
+    el.style.display='block';
+    el.innerHTML=`持有 ${h.qty}股 · 成本 ${h.avgCost.toFixed(2)} · 浮盈 ${isUp?'+':''}${pnl.toFixed(2)}（${isUp?'+':''}${((selectedStock.price-h.avgCost)/h.avgCost*100).toFixed(2)}%）`;
+    el.style.color=isUp?'var(--颜色-买入)':'var(--颜色-卖出)';
+  } else {
+    el.style.display='none';
+  }
+}
+
+/* ===== 复盘解释层 ===== */
+function renderInsights(metrics){
+  const panel=document.getElementById('insightsPanel');
+  if(!panel) return;
+  const insights=[];
+  const trades=metrics.交易次数||0;
+  const winRate=metrics.胜率;
+  const pnlRatio=metrics.盈亏比;
+  const maxDD=metrics.最大回撤;
+
+  if(trades<5) insights.push('当前交易样本较少，分析结论仅供参考。');
+  if(winRate!==null&&winRate>=0.6&&pnlRatio!==null&&pnlRatio<1.2) insights.push('胜率较高，但盈亏比偏弱，可能存在赚小亏大的问题。');
+  if(maxDD!==null&&maxDD<=-0.15) insights.push('最大回撤偏高，建议降低仓位集中度并减少连续追单。');
+  if(winRate!==null&&winRate>=0.5&&pnlRatio!==null&&pnlRatio>=1.5) insights.push('胜率和盈亏比均表现良好，当前策略框架有效。');
+  if(!insights.length) insights.push('当前交易表现较均衡，建议继续关注仓位控制与交易节奏。');
+
+  panel.style.display='block';
+  panel.innerHTML=insights.map(i=>`<div class="insight-item"><span class="insight-icon">💡</span><span>${i}</span></div>`).join('');
+}
+
 /* ===== INIT ===== */
 async function init(){
   await refreshMarketStatus();
   await refreshQuotes();
   await refreshAccount();
+  await refreshAccountSummary();
   resizeChartCanvas();
   setupChartHover();
   if(quotesData.astocks.length) selectStock(quotesData.astocks[0].symbol);

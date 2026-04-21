@@ -285,6 +285,64 @@ body { font-family: var(--font-sans); background: var(--bg-primary); color: var(
 .dash-stat-value.negative { color: var(--red); }
 
 /* ── 响应式 ── */
+
+/* ── 当前标的强化区 ── */
+.current-symbol {
+  margin: var(--间距-3) var(--间距-4);
+  padding: var(--间距-4);
+  border-radius: var(--圆角-大);
+  background: var(--背景-卡片);
+  border: 1px solid var(--边框-默认);
+}
+.current-symbol-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.current-symbol-info { display: flex; flex-direction: column; gap: 2px; }
+.current-symbol-name { font-size: var(--字号-标题); font-weight: var(--字重-极粗); }
+.current-symbol-code { color: var(--文字-次); font-size: var(--字号-小); font-family: var(--字体-等宽); }
+.current-symbol-price-area { text-align: right; }
+.current-symbol-price { font-family: var(--字体-等宽); font-size: 1.4rem; font-weight: var(--字重-极粗); }
+.current-symbol-change { font-family: var(--字体-等宽); font-size: var(--字号-中); }
+.current-symbol-change.up { color: var(--颜色-买入); }
+.current-symbol-change.down { color: var(--颜色-卖出); }
+.current-symbol-direction { font-size: var(--字号-极小); font-weight: var(--字重-粗体); margin-top: 2px; }
+.current-symbol-direction.up { color: var(--颜色-买入); }
+.current-symbol-direction.down { color: var(--颜色-卖出); }
+.current-symbol-holding { margin-top: var(--间距-2); padding-top: var(--间距-2); border-top: 1px solid var(--边框-默认); font-size: var(--字号-小); color: var(--文字-次); }
+
+/* ── 交易校验提示 ── */
+.trade-validation { font-size: var(--字号-极小); min-height: 18px; }
+.trade-validation.error { color: var(--颜色-卖出); }
+.trade-validation.success { color: var(--颜色-买入); }
+
+/* ── 数量提示 ── */
+.form-field-hint { font-size: var(--字号-极小); color: var(--文字-弱); }
+
+/* ── 复盘解释面板 ── */
+.insights-panel {
+  background: var(--背景-卡片);
+  border: 1px solid var(--边框-默认);
+  border-radius: var(--圆角-大);
+  padding: var(--间距-4) var(--间距-5);
+  margin-bottom: var(--间距-5);
+}
+.insights-panel .insight-item {
+  padding: var(--间距-2) 0;
+  border-bottom: 1px solid var(--边框-默认);
+  font-size: var(--字号-小);
+  color: var(--文字-次);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--间距-2);
+}
+.insights-panel .insight-item:last-child { border-bottom: none; }
+.insights-panel .insight-icon { color: var(--颜色-警告); }
+
+/* ── 成交筛选 ── */
+.history-filter .preset-btn.active { border-color: var(--颜色-品牌); color: var(--颜色-品牌); background: var(--颜色-品牌-底); }
+
 @media (max-width: 1200px) {
   .main-layout { flex-direction: column; }
   .sidebar { width: 100%; flex-direction: row; justify-content: center; height: auto; border-right: none; border-bottom: 1px solid var(--border); }

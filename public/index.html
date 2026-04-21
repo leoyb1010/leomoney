@@ -11,27 +11,30 @@
 </head>
 <body>
 
+<!-- 系统消息容器（Agent 可读取） -->
+<div id="system-feedback" data-testid="system-feedback" data-role="system-feedback" aria-live="polite"></div>
+
 <div class="header">
   <div class="logo">
     <div class="logo-icon">L</div>
     <div class="logo-text">Leo<span>money</span></div>
   </div>
   <div class="header-right">
-    <div class="market-status">
+    <div class="market-status" data-testid="market-status" data-role="market-status">
       <div class="status-dot" id="statusDot"></div>
       <span id="marketLabel">检测中...</span>
     </div>
-    <div class="balance-display">
+    <div class="balance-display" data-testid="header-balance" data-role="account-balance" data-metric="cash">
       <span class="balance-label">可用资金</span>
       <span class="balance-value" id="headerBalance">¥1,000,000.00</span>
     </div>
-    <button class="reset-btn" onclick="resetAccount()">重置账户</button>
+    <button class="reset-btn" data-testid="reset-account" aria-label="重置账户" onclick="resetAccount()">重置账户</button>
   </div>
 </div>
 
-<div class="index-bar" id="indexBar"></div>
+<div class="index-bar" id="indexBar" data-testid="index-bar" data-role="index-bar"></div>
 
-<div class="market-tabs" id="marketTabs">
+<div class="market-tabs" id="marketTabs" data-testid="market-tabs" data-role="market-tabs">
   <div class="market-tab active" data-cat="all" onclick="setMarketCategory('all')">全部</div>
   <div class="market-tab" data-cat="astocks" onclick="setMarketCategory('astocks')">🇨🇳 A股</div>
   <div class="market-tab" data-cat="hkstocks" onclick="setMarketCategory('hkstocks')">🇭🇰 港股</div>
@@ -41,40 +44,57 @@
 </div>
 
 <div class="main-layout">
-  <div class="sidebar">
-    <div class="sidebar-item active" data-view="quotes" onclick="switchView('quotes')">
-      <div class="sidebar-icon">📈</div><div class="sidebar-label">行情</div>
+  <!-- 侧边导航：产品化命名 -->
+  <nav class="sidebar" data-testid="sidebar" data-role="navigation">
+    <div class="sidebar-item active" data-view="quotes" onclick="switchView('quotes')" aria-label="市场">
+      <div class="sidebar-icon">📈</div><div class="sidebar-label">市场</div>
     </div>
-    <div class="sidebar-item" data-view="trade" onclick="switchView('trade')">
+    <div class="sidebar-item" data-view="trade" onclick="switchView('trade')" aria-label="交易">
       <div class="sidebar-icon">💰</div><div class="sidebar-label">交易</div>
     </div>
-    <div class="sidebar-item" data-view="portfolio" onclick="switchView('portfolio')">
-      <div class="sidebar-icon">📁</div><div class="sidebar-label">持仓</div>
+    <div class="sidebar-item" data-view="portfolio" onclick="switchView('portfolio')" aria-label="资产">
+      <div class="sidebar-icon">📁</div><div class="sidebar-label">资产</div>
     </div>
-    <div class="sidebar-item" data-view="history" onclick="switchView('history')">
-      <div class="sidebar-icon">📋</div><div class="sidebar-label">记录</div>
+    <div class="sidebar-item" data-view="history" onclick="switchView('history')" aria-label="成交">
+      <div class="sidebar-icon">📋</div><div class="sidebar-label">成交</div>
     </div>
-    <div class="sidebar-item" data-view="analysis" onclick="switchView('analysis')">
-      <div class="sidebar-icon">🧠</div><div class="sidebar-label">分析</div>
+    <div class="sidebar-item" data-view="analysis" onclick="switchView('analysis')" aria-label="复盘">
+      <div class="sidebar-icon">🧠</div><div class="sidebar-label">复盘</div>
     </div>
     <div class="sidebar-spacer"></div>
-  </div>
+  </nav>
 
   <div class="content-area">
 
-    <!-- VIEW: Quotes -->
-    <div class="view quotes-view active" id="view-quotes">
+    <!-- VIEW: 市场（原行情） -->
+    <div class="view quotes-view active" id="view-quotes" data-testid="view-market" data-role="view" data-view="quotes">
       <div class="quotes-left">
         <div class="panel-header"><div style="font-weight:600;font-size:.92rem">📊 自选行情</div></div>
         <div class="search-box">
-          <input type="text" class="search-input" id="searchInput" placeholder="搜索股票名称/代码..." oninput="filterStocks(this.value)">
+          <input type="text" class="search-input" id="searchInput" data-testid="search-input" data-role="search-input" placeholder="搜索股票名称/代码..." oninput="filterStocks(this.value)" aria-label="搜索股票">
         </div>
         <div class="frozen-indicator" id="frozenIndicator" style="display:none">
           <div class="dot"></div><span>市场已休，行情冻结在收盘价</span>
         </div>
-        <div class="watchlist" id="watchlist"></div>
+        <div class="watchlist" id="watchlist" data-testid="watchlist" data-role="watchlist"></div>
       </div>
       <div class="quotes-center">
+        <!-- 当前标的强化区 -->
+        <section class="current-symbol panel" id="currentSymbolPanel" data-testid="current-symbol-panel" data-role="current-symbol" data-symbol="" style="display:none">
+          <div class="current-symbol-main">
+            <div class="current-symbol-info">
+              <div class="current-symbol-name" id="csName">--</div>
+              <div class="current-symbol-code" id="csCode">--</div>
+            </div>
+            <div class="current-symbol-price-area">
+              <div class="current-symbol-price" id="csPrice">--</div>
+              <div class="current-symbol-change" id="csChange">--</div>
+              <div class="current-symbol-direction" id="csDirection">--</div>
+            </div>
+          </div>
+          <div class="current-symbol-holding" id="csHolding" style="display:none"></div>
+        </section>
+
         <div class="chart-header">
           <div class="chart-stock-info">
             <div>
@@ -94,7 +114,7 @@
             <button class="tf-btn" data-tf="D" onclick="setTimeframe('D')">日线</button>
           </div>
         </div>
-        <div class="chart-container"><canvas id="chartCanvas" class="chart-canvas"></canvas></div>
+        <div class="chart-container"><canvas id="chartCanvas" class="chart-canvas" data-testid="chart-canvas"></canvas></div>
         <div class="chart-stats">
           <div class="stat-item"><div class="stat-label">今开</div><div class="stat-value" id="statOpen">--</div></div>
           <div class="stat-item"><div class="stat-label">最高</div><div class="stat-value" id="statHigh">--</div></div>
@@ -102,123 +122,136 @@
           <div class="stat-item"><div class="stat-label">昨收</div><div class="stat-value" id="statPrev">--</div></div>
         </div>
       </div>
-      <div class="quotes-right trade-panel">
+      <!-- 交易面板 -->
+      <div class="quotes-right trade-panel" id="tradePanel" data-testid="trade-panel" data-role="trade-panel">
         <div class="trade-tabs">
-          <div class="trade-tab buy active" onclick="setTradeType('buy')">买入</div>
-          <div class="trade-tab sell" onclick="setTradeType('sell')">卖出</div>
-          <div class="trade-tab order" onclick="setTradeType('order')">条件单</div>
+          <div class="trade-tab buy active" data-testid="trade-tab-buy" onclick="setTradeType('buy')" aria-label="切换到买入">买入</div>
+          <div class="trade-tab sell" data-testid="trade-tab-sell" onclick="setTradeType('sell')" aria-label="切换到卖出">卖出</div>
+          <div class="trade-tab order" data-testid="trade-tab-order" onclick="setTradeType('order')" aria-label="切换到条件单">条件单</div>
         </div>
-        <!-- Buy/Sell Form -->
+        <!-- 买入/卖出表单 -->
         <div class="trade-form" id="tradeFormSpot">
-          <div class="form-group"><label class="form-label">股票代码</label><input type="text" class="form-input" id="tradeSymbol" readonly value="--"></div>
-          <div class="form-group"><label class="form-label">委托价格</label><input type="number" class="form-input" id="tradePrice" step="0.01" placeholder="限价"></div>
+          <div class="form-group"><label class="form-label">股票代码</label><input type="text" class="form-input" id="tradeSymbol" data-testid="trade-symbol" readonly value="--"></div>
+          <div class="form-group"><label class="form-label">委托价格</label><input type="number" class="form-input" id="tradePrice" data-testid="trade-price" step="0.01" placeholder="限价"></div>
           <div class="form-group">
             <label class="form-label">委托数量（股）</label>
-            <input type="number" class="form-input" id="tradeQty" step="100" min="100" placeholder="100的整数倍" oninput="calcTotal()">
+            <input type="number" class="form-input" id="tradeQty" data-testid="trade-qty" step="100" min="100" placeholder="100的整数倍" oninput="calcTotal()">
             <div class="quantity-presets">
               <button class="preset-btn" onclick="setQty(100)">100</button>
               <button class="preset-btn" onclick="setQty(500)">500</button>
               <button class="preset-btn" onclick="setQty(1000)">1000</button>
               <button class="preset-btn" onclick="setQtyMax()">全仓</button>
             </div>
+            <div class="form-field-hint" id="qtyHint" data-testid="qty-hint" data-role="qty-hint"></div>
           </div>
-          <div class="trade-total"><span class="trade-total-label">预估金额</span><span class="trade-total-value" id="tradeTotal">¥0.00</span></div>
-          <button class="submit-btn buy-btn" id="submitBtn" onclick="submitOrder()" disabled>买入</button>
+          <div class="trade-total"><span class="trade-total-label">预估金额</span><span class="trade-total-value" id="tradeTotal" data-testid="trade-total">¥0.00</span></div>
+          <div class="trade-validation" id="tradeValidation" data-testid="trade-validation" data-role="trade-validation"></div>
+          <button class="submit-btn buy-btn action-button buy" id="submitBtn" data-testid="submit-buy-order" data-role="trade-submit" data-side="buy" aria-label="买入下单" onclick="submitOrder()" disabled>买入下单</button>
         </div>
-        <!-- Conditional Order Form -->
+        <!-- 条件单表单 -->
         <div class="trade-form" id="tradeFormOrder" style="display:none">
-          <div class="form-group"><label class="form-label">股票代码</label><input type="text" class="form-input" id="orderSymbol" readonly value="--"></div>
+          <div class="form-group"><label class="form-label">股票代码</label><input type="text" class="form-input" id="orderSymbol" data-testid="order-symbol" readonly value="--"></div>
           <div class="form-group">
             <label class="form-label">触发条件</label>
-            <select class="form-select" id="orderTriggerType">
+            <select class="form-select" id="orderTriggerType" data-testid="order-trigger-type">
               <option value="gte">价格 ≥ 触发价（涨到位）</option>
               <option value="lte">价格 ≤ 触发价（跌到位）</option>
             </select>
           </div>
-          <div class="form-group"><label class="form-label">触发价格</label><input type="number" class="form-input" id="orderTriggerPrice" step="0.01" placeholder="如 1700"></div>
+          <div class="form-group"><label class="form-label">触发价格</label><input type="number" class="form-input" id="orderTriggerPrice" data-testid="order-trigger-price" step="0.01" placeholder="如 1700"></div>
           <div class="form-group">
             <label class="form-label">买卖方向</label>
-            <select class="form-select" id="orderDir">
+            <select class="form-select" id="orderDir" data-testid="order-direction">
               <option value="buy">买入</option>
               <option value="sell">卖出</option>
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">委托数量（股）</label>
-            <input type="number" class="form-input" id="orderQty" step="100" min="100" placeholder="100的整数倍">
+            <input type="number" class="form-input" id="orderQty" data-testid="order-qty" step="100" min="100" placeholder="100的整数倍">
           </div>
-          <button class="submit-btn order-btn" onclick="submitOrderCondition()">创建条件单</button>
+          <button class="submit-btn order-btn" data-testid="submit-order-create" data-role="order-submit" aria-label="创建条件单" onclick="submitOrderCondition()">创建条件单</button>
           <div style="margin-top:12px;font-size:.82rem;color:var(--text-secondary)">系统每5秒检查触发条件，满足时自动执行</div>
-          <div class="order-list" id="orderList" style="margin-top:12px"></div>
+          <div class="order-list" id="orderList" data-testid="order-list" data-role="order-list" style="margin-top:12px"></div>
         </div>
       </div>
     </div>
 
-    <!-- VIEW: Trade -->
-    <div class="view trade-view" id="view-trade">
+    <!-- VIEW: 交易（快捷交易） -->
+    <div class="view trade-view" id="view-trade" data-testid="view-trade" data-role="view" data-view="trade">
       <div class="trade-view-header">💰 快捷交易（支持全市场）</div>
       <div class="trade-grid">
         <div>
-          <div class="form-group" style="margin-bottom:14px"><label class="form-label">资产代码</label><input type="text" class="form-input" id="quickSymbol" placeholder="如 600519 / BTC / XAU" oninput="quickLookup()"></div>
-          <div class="quick-quote-card" id="quickQuoteResult"><div class="empty-state"><p>输入代码查看行情</p></div></div>
+          <div class="form-group" style="margin-bottom:14px"><label class="form-label">资产代码</label><input type="text" class="form-input" id="quickSymbol" data-testid="quick-symbol" placeholder="如 600519 / BTC / XAU" oninput="quickLookup()"></div>
+          <div class="quick-quote-card" id="quickQuoteResult" data-testid="quick-quote-result" data-role="quick-quote"><div class="empty-state"><p>输入代码查看行情</p></div></div>
         </div>
         <div>
-          <div class="form-group" style="margin-bottom:14px"><label class="form-label">委托价格</label><input type="number" class="form-input" id="quickPrice" step="0.01" placeholder="限价"></div>
-          <div class="form-group" style="margin-bottom:14px"><label class="form-label">委托数量</label><input type="number" class="form-input" id="quickQty" step="100" min="100" placeholder="100的整数倍"></div>
+          <div class="form-group" style="margin-bottom:14px"><label class="form-label">委托价格</label><input type="number" class="form-input" id="quickPrice" data-testid="quick-price" step="0.01" placeholder="限价"></div>
+          <div class="form-group" style="margin-bottom:14px"><label class="form-label">委托数量</label><input type="number" class="form-input" id="quickQty" data-testid="quick-qty" step="100" min="100" placeholder="100的整数倍"></div>
           <div style="display:flex;gap:10px">
-            <button class="submit-btn buy-btn" style="flex:1" onclick="quickTrade('buy')">买入</button>
-            <button class="submit-btn sell-btn" style="flex:1" onclick="quickTrade('sell')">卖出</button>
+            <button class="submit-btn buy-btn action-button buy" data-testid="quick-buy" data-side="buy" aria-label="快捷买入下单" style="flex:1" onclick="quickTrade('buy')">买入下单</button>
+            <button class="submit-btn sell-btn action-button sell" data-testid="quick-sell" data-side="sell" aria-label="快捷卖出下单" style="flex:1" onclick="quickTrade('sell')">卖出下单</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- VIEW: Portfolio -->
-    <div class="view portfolio-view" id="view-portfolio">
-      <div class="portfolio-header"><span>📁 持仓管理</span></div>
-      <div class="portfolio-summary" id="portfolioSummary"></div>
-      <div id="portfolioList"></div>
+    <!-- VIEW: 资产（原持仓） -->
+    <div class="view portfolio-view" id="view-portfolio" data-testid="view-portfolio" data-role="view" data-view="portfolio">
+      <div class="portfolio-header"><span>📁 资产总览</span></div>
+      <div class="portfolio-summary" id="portfolioSummary" data-testid="portfolio-summary" data-role="portfolio-summary"></div>
+      <div id="portfolioList" data-testid="portfolio-list" data-role="portfolio-list"></div>
     </div>
 
-    <!-- VIEW: History -->
-    <div class="view history-view" id="view-history">
+    <!-- VIEW: 成交（原记录） -->
+    <div class="view history-view" id="view-history" data-testid="view-history" data-role="view" data-view="history">
       <div class="history-header">📋 成交记录</div>
-      <div id="historyList"></div>
+      <!-- 成交筛选 -->
+      <div class="history-filter" data-testid="history-filter" data-role="history-filter" style="margin-bottom:16px;display:flex;gap:8px">
+        <button class="preset-btn active" data-filter="all" onclick="filterHistory('all')">全部</button>
+        <button class="preset-btn" data-filter="buy" onclick="filterHistory('buy')">买入</button>
+        <button class="preset-btn" data-filter="sell" onclick="filterHistory('sell')">卖出</button>
+      </div>
+      <div id="historyList" data-testid="history-list" data-role="history-list"></div>
     </div>
 
-    <!-- VIEW: Analysis -->
-    <div class="view analysis-view" id="view-analysis">
+    <!-- VIEW: 复盘（原分析） -->
+    <div class="view analysis-view" id="view-analysis" data-testid="view-analysis" data-role="view" data-view="analysis">
       <div class="analysis-header">
-        <span>🧠 交易分析</span>
-        <button class="analysis-refresh-btn" onclick="loadAnalysis()">刷新</button>
+        <span>🧠 交易复盘</span>
+        <button class="analysis-refresh-btn" data-testid="analysis-refresh" aria-label="刷新分析数据" onclick="loadAnalysis()">刷新数据</button>
       </div>
 
       <!-- 核心指标卡 -->
-      <div class="metric-cards" id="metricCards"></div>
+      <div class="metric-cards" id="metricCards" data-testid="metric-cards" data-role="metric-cards"></div>
+
+      <!-- 复盘解释层 -->
+      <div class="insights-panel" id="insightsPanel" data-testid="insights-panel" data-role="insights-panel" style="display:none"></div>
 
       <!-- 图表区 -->
       <div class="analysis-charts">
         <div class="chart-card">
           <div class="chart-card-title">收益曲线</div>
-          <div class="chart-card-body"><canvas id="equityCanvas"></canvas></div>
+          <div class="chart-card-body"><canvas id="equityCanvas" data-testid="equity-canvas"></canvas></div>
         </div>
         <div class="chart-card">
           <div class="chart-card-title">盈亏分布</div>
-          <div class="chart-card-body"><canvas id="pnlDistCanvas"></canvas></div>
+          <div class="chart-card-body"><canvas id="pnlDistCanvas" data-testid="pnl-dist-canvas"></canvas></div>
         </div>
       </div>
 
       <!-- 交易列表 -->
       <div class="analysis-trade-list">
         <div class="chart-card-title" style="padding:16px 20px 8px">交易明细</div>
-        <div id="analysisTradeList"></div>
+        <div id="analysisTradeList" data-testid="analysis-trade-list" data-role="analysis-trade-list"></div>
       </div>
     </div>
 
   </div>
 </div>
 
-<div class="notification" id="notification"></div>
+<!-- 保留旧通知区兼容 -->
+<div class="notification" id="notification" data-testid="notification"></div>
 
 <script src="/js/app.js"></script>
 </body>
