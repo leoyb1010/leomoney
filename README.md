@@ -105,6 +105,24 @@ leomoney/
 
 ## Changelog
 
+### v1.3.0 — 2026-04-22
+
+**🔧 产品化 + Agent 双模式升级**
+
+- 建立统一设计 token 体系（tokens.css）：色彩/间距/字号/圆角/阴影/动效
+- 建立基础组件样式库（components.css）：面板/指标卡/按钮/标签/状态徽标/表单/四态/列表项/系统消息容器
+- 前端模块化拆分：core/(api+events+store+constants) + utils/(format+guard+dom+date) + adapters/(market+portfolio+order) + presenters/(account+analytics)
+- 新增 `GET /api/account/summary`：统一账户汇总，用现价算真实市值
+- 修复持仓口径不一致：前后端统一使用 summary API，兜底旧逻辑
+- 当前标的强化区：名称/代码/价格/涨跌/方向文字/持仓浮盈，带 data-symbol
+- 交易面板升级：按钮文案明确（买入下单/卖出下单）、可买/可卖数量提示、校验提示区、失败保留输入
+- 成交筛选：全部/买入/卖出
+- 复盘解释层：中文洞察文案（胜率/盈亏比/回撤分析）
+- 导航产品化：行情→市场、持仓→资产、记录→成交、分析→复盘
+- Agent 友好：data-testid/data-role/data-symbol/data-side/data-status 全覆盖，aria-label 全覆盖
+- 系统消息容器：#system-feedback + aria-live="polite"
+- 四份文档：UPGRADE_NOTES / COMPATIBILITY / UI_SYSTEM / AGENT_OPERATION_GUIDE
+
 ### v1.2.0 — 2026-04-21
 
 **🧠 交易分析 + Agent 决策层**
