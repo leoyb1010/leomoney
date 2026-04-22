@@ -97,6 +97,21 @@ body { font-family: var(--font-sans); background: var(--bg-primary); color: var(
 
 /* ── Quotes View ── */
 .quotes-view { gap: 1px; background: var(--border); }
+
+/* 自选/热门切换 */
+.list-mode-tab { background: rgba(255,255,255,0.04); color: var(--text-secondary); transition: all .15s; }
+.list-mode-tab.active { background: rgba(255,255,255,0.12); color: var(--text-primary); }
+.list-mode-tab:hover { background: rgba(255,255,255,0.08); }
+
+/* 自选按钮（列表项） */
+.fav-btn { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 0 2px; color: var(--text-secondary); transition: color .15s; line-height: 1; }
+.fav-btn.active { color: #f59e0b; }
+.fav-btn:hover { color: #fbbf24; }
+
+/* 自选按钮（当前标的区） */
+.fav-panel-btn { background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); font-size: .78rem; padding: 4px 10px; cursor: pointer; transition: all .15s; white-space: nowrap; }
+.fav-panel-btn.active { color: #f59e0b; border-color: #f59e0b; }
+.fav-panel-btn:hover { border-color: var(--color-info); color: var(--color-info); }
 .quotes-left { width: 320px; background: var(--bg-primary); display: flex; flex-direction: column; border-right: 1px solid var(--border); }
 .quotes-center { flex: 1; background: var(--bg-primary); display: flex; flex-direction: column; }
 .quotes-right { width: 300px; background: var(--bg-primary); display: flex; flex-direction: column; border-left: 1px solid var(--border); }
