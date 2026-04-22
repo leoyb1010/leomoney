@@ -1,0 +1,281 @@
+/**
+ * Leomoney Frontend v1.5.0 — 模块化主入口
+ * 替代 app.js 成为真正的前端架构核心
+ */
+
+import { store } from './features/store.js';
+import { refreshMarketStatus } from './features/market.js';
+import { refreshQuotes } from './features/market.js';
+import { refreshAccount, refreshAccountSummary, refreshWatchlist, refreshFx, refreshAccounts, renderAccountSwitcher } from './features/account.js';
+import { renderStockList } from './features/stockList.js';
+import { renderIndices } from './features/indices.js';
+import { selectStock } from './features/trade.js';
+import { resizeChartCanvas, setupChartHover, drawChart } from './features/chart.js';
+import { loadAnalysis } from './features/analysis.js';
+import { renderDashboardStats, renderDashboard } from './features/dashboard.js';
+import { startTick } from './features/tick.js';
+import { switchView, setMarketCategory, setListMode } from './features/views.js';
+
+// 绑定全局事件（替代 index.html 内联 onclick）
+function bindEvents() {
+  // Sidebar 导航
+  document.querySelectorAll('.sidebar-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const view = item.dataset.view;
+      if (!view) return;
+      switchView(view);
+      // 视图懒加载
+      if (view === 'dashboard') {
+        import('./features/dashboard.js').then(m => m.renderDashboard());
+      }
+      if (view === 'portfolio') {
+        import('./features/portfolio.js').then(m => m.renderPortfolioView());
+      }
+      if (view === 'orders') {
+        import('./features/dashboard.js').then(m => m.renderOrders());
+      }
+      if (view === 'history') {
+        import('./features/history.js').then(m => m.renderHistoryView());
+      }
+      if (view === 'analysis') {
+        import('./features/analysis.js').then(m => m.loadAnalysis());
+      }
+      if (view === 'trade') {
+        import('./features/quickTrade.js').then(m => m.initQuickTrade && m.initQuickTrade());
+      }
+      if (view === 'quotes' && store.selectedStock) {
+        requestAnimationFrame(() => { resizeChartCanvas(); drawChart(); });
+      }
+    });
+  });
+
+  // Dashboard 快速买入
+  const dashQuickBuy = document.getElementById('dashboardQuickBuyBtn');
+  if (dashQuickBuy) {
+    dashQuickBuy.addEventListener('click', () => {
+      switchView('trade');
+      document.querySelector('.sidebar-item[data-view="trade"]')?.click();
+    });
+  }
+
+  // Dashboard 市场分类切换
+  document.querySelectorAll('.cat-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      import('./features/dashboard.js').then(m => m.renderDashboardMarketList(chip.dataset.cat));
+    });
+  });
+
+  // Dashboard 关注标的点击
+  document.getElementById('dashboardWatchlist')?.addEventListener('click', (e) => {
+    const item = e.target.closest('.dash-stock-item');
+    if (item) {
+      switchView('quotes');
+      selectStock(item.dataset.symbol);
+    }
+  });
+
+  // 市场分类 tab
+  document.querySelectorAll('.market-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const cat = tab.dataset.cat;
+      if (cat) { setMarketCategory(cat); renderStockList(); }
+    });
+  });
+
+  // 列表模式切换
+  document.querySelectorAll('.list-mode-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const mode = tab.dataset.mode;
+      if (mode) { setListMode(mode); renderStockList(); }
+    });
+  });
+
+  // 搜索框
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      import('./features/stockList.js').then(m => m.filterStocks(e.target.value));
+    });
+  }
+
+  // 交易类型切换
+  document.querySelectorAll('.trade-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      import('./features/trade.js').then(m => m.setTradeType(tab.dataset.type || tab.classList.contains('buy') ? 'buy' : 'sell'));
+    });
+  });
+
+  // 数量输入变化
+  const tradeQty = document.getElementById('tradeQty');
+  if (tradeQty) {
+    tradeQty.addEventListener('input', () => {
+      import('./features/trade.js').then(m => m.calcTotal());
+    });
+  }
+
+  // 价格输入变化
+  const tradePrice = document.getElementById('tradePrice');
+  if (tradePrice) {
+    tradePrice.addEventListener('input', () => {
+      import('./features/trade.js').then(m => m.calcTotal());
+    });
+  }
+
+  // 全仓按钮
+  const qtyMaxBtn = document.getElementById('qtyMaxBtn');
+  if (qtyMaxBtn) {
+    qtyMaxBtn.addEventListener('click', () => {
+      import('./features/trade.js').then(m => m.setQtyMax());
+    });
+  }
+
+  // 提交订单
+  const submitBtn = document.getElementById('submitBtn');
+  if (submitBtn) {
+    submitBtn.addEventListener('click', () => {
+      import('./features/trade.js').then(m => m.submitOrder());
+    });
+  }
+
+  // 条件单提交
+  const submitOrderBtn = document.getElementById('submitOrderBtn');
+  if (submitOrderBtn) {
+    submitOrderBtn.addEventListener('click', () => {
+      import('./features/trade.js').then(m => m.submitOrderCondition());
+    });
+  }
+
+  // 快捷交易
+  const quickLookupBtn = document.getElementById('quickLookupBtn');
+  if (quickLookupBtn) {
+    quickLookupBtn.addEventListener('click', () => {
+      import('./features/quickTrade.js').then(m => m.quickLookup());
+    });
+  }
+  const quickBuyBtn = document.getElementById('quickBuyBtn');
+  if (quickBuyBtn) {
+    quickBuyBtn.addEventListener('click', () => {
+      import('./features/quickTrade.js').then(m => m.quickTrade('buy'));
+    });
+  }
+  const quickSellBtn = document.getElementById('quickSellBtn');
+  if (quickSellBtn) {
+    quickSellBtn.addEventListener('click', () => {
+      import('./features/quickTrade.js').then(m => m.quickTrade('sell'));
+    });
+  }
+
+  // 账户切换器
+  const accountSwitcherBtn = document.getElementById('accountSwitcherBtn');
+  if (accountSwitcherBtn) {
+    accountSwitcherBtn.addEventListener('click', () => {
+      import('./features/account.js').then(m => m.toggleAccountDropdown());
+    });
+  }
+
+  // 新建账户
+  const createAccountAction = document.getElementById('createAccountAction');
+  if (createAccountAction) {
+    createAccountAction.addEventListener('click', () => {
+      import('./features/account.js').then(m => m.showCreateAccountModal());
+    });
+  }
+
+  // 创建确认
+  const confirmCreateBtn = document.querySelector('#createAccountModal .btn-primary');
+  if (confirmCreateBtn) {
+    confirmCreateBtn.addEventListener('click', () => {
+      import('./features/account.js').then(m => m.confirmCreateAccount());
+    });
+  }
+
+  // 删除确认
+  const confirmDeleteBtn = document.querySelector('#deleteAccountModal .btn-danger');
+  if (confirmDeleteBtn) {
+    confirmDeleteBtn.addEventListener('click', () => {
+      import('./features/account.js').then(m => m.confirmDeleteAccount());
+    });
+  }
+
+  // 关闭弹窗
+  document.querySelectorAll('.modal-close, .modal-backdrop').forEach(el => {
+    el.addEventListener('click', (e) => {
+      const modal = e.target.closest('.modal');
+      if (modal) modal.style.display = 'none';
+    });
+  });
+
+  // 重置账户
+  const resetBtn = document.querySelector('.reset-btn');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      import('./features/account.js').then(m => m.resetAccount());
+    });
+  }
+
+  // 成交筛选
+  document.querySelectorAll('.history-filter .preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const filter = btn.dataset.filter;
+      if (filter) {
+        import('./features/history.js').then(m => m.filterHistory(filter));
+      }
+    });
+  });
+
+  // 订单筛选
+  document.querySelectorAll('.orders-filter .preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const filter = btn.dataset.ofilter;
+      if (filter) {
+        import('./features/dashboard.js').then(m => m.filterOrders(filter));
+      }
+    });
+  });
+
+  // K线周期
+  document.querySelectorAll('.tf-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tf = parseInt(btn.dataset.tf);
+      if (!isNaN(tf)) {
+        import('./features/chart.js').then(m => m.setTimeframe(tf));
+      }
+    });
+  });
+
+  // 窗口 resize
+  window.addEventListener('resize', () => {
+    resizeChartCanvas();
+    drawChart();
+  });
+}
+
+// 初始化
+async function init() {
+  await refreshMarketStatus();
+  await refreshQuotes();
+  await refreshAccount();
+  await refreshAccountSummary();
+  await refreshWatchlist();
+  await refreshFx();
+  await refreshAccounts();
+
+  // 默认显示 Dashboard
+  renderDashboard();
+  renderStockList();
+  renderIndices();
+  resizeChartCanvas();
+  setupChartHover();
+
+  if (store.quotesData.astocks.length) {
+    selectStock(store.quotesData.astocks[0].symbol);
+  }
+
+  loadAnalysis().then(() => renderDashboardStats());
+  bindEvents();
+  startTick();
+}
+
+init();
