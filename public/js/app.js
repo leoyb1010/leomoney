@@ -389,6 +389,52 @@ function applyStockToTradePanel(){
   calcTotal();
 }
 
+/* ===== INDICES ===== */
+function renderIndices(){
+  const bar=document.getElementById('indexBar');
+  if(!bar) return;
+  const indices=quotesData.indices||[];
+  if(!indices.length){ bar.innerHTML=''; return; }
+  bar.innerHTML=indices.map(idx=>{
+    const change=idx.price-(idx.prevClose||idx.price);
+    const pct=idx.changePercent||(idx.prevClose?((change/idx.prevClose)*100):0);
+    const isUp=change>=0;
+    const color=isUp?'var(--green)':'var(--red)';
+    return `<div class="index-item" onclick="selectIndex('${idx.id}')" style="cursor:pointer">
+      <div class="index-name">${idx.name}</div>
+      <div class="index-value" style="color:${color}">${idx.price>=1000?idx.price.toFixed(0):idx.price.toFixed(2)}</div>
+      <div class="index-change ${isUp?'up':'down'}">${isUp?'+':''}${pct.toFixed(2)}%</div>
+    </div>`;
+  }).join('');
+}
+
+function selectIndex(id){
+  const idx=quotesData.indices?.find(i=>i.id===id);
+  if(!idx) return;
+  selectedIndex={...idx};
+  selectedStock=null;
+  generateCandles(id,40,true);
+  updateChartHeader();
+  renderStockList();
+  drawChart();
+}
+
+function updateIndexChartHeader(){
+  if(!selectedIndex) return;
+  const change=selectedIndex.price-(selectedIndex.prevClose||selectedIndex.price);
+  const pct=selectedIndex.changePercent||(selectedIndex.prevClose?((change/selectedIndex.prevClose)*100):0);
+  const isUp=change>=0;
+  document.getElementById('chartName').textContent=selectedIndex.name;
+  document.getElementById('chartSymbol').textContent=selectedIndex.code||selectedIndex.id;
+  document.getElementById('chartPrice').textContent=selectedIndex.price>=1000?selectedIndex.price.toFixed(0):selectedIndex.price.toFixed(2);
+  document.getElementById('chartChange').textContent=`${isUp?'+':''}${change.toFixed(2)} (${isUp?'+':''}${pct.toFixed(2)}%)`;
+  document.getElementById('chartChange').style.color=isUp?'var(--green)':'var(--red)';
+  document.getElementById('statOpen').textContent=selectedIndex.open?formatPrice(selectedIndex.open):'--';
+  document.getElementById('statHigh').textContent=selectedIndex.high?formatPrice(selectedIndex.high):'--';
+  document.getElementById('statLow').textContent=selectedIndex.low?formatPrice(selectedIndex.low):'--';
+  document.getElementById('statPrev').textContent=selectedIndex.prevClose?formatPrice(selectedIndex.prevClose):'--';
+}
+
 /* ===== CHART ===== */
 function generateCandles(symbol,count=40,isIndex=false){
   const src=isIndex?selectedIndex:(getFilteredStocks().find(s=>s.symbol===symbol) || selectedStock);
@@ -409,6 +455,7 @@ function generateCandles(symbol,count=40,isIndex=false){
   candles[symbol]=arr;
 }
 function updateChartHeader(){
+  if(selectedIndex){ updateIndexChartHeader(); return; }
   const s=selectedStock; if(!s) return;
   const change=s.price-(s.prevClose||s.price);
   const pct=(change/(s.prevClose||s.price)*100)||0;
@@ -774,16 +821,16 @@ function renderPortfolioView(){
         <div class="summary-label">总资产(CNY)</div><div class="summary-value">${formatMoney(s.totalAssets)}</div>
       </div>
       <div class="summary-card" data-testid="metric-cash" data-role="account-metric" data-metric="cash">
-        <div class="summary-label">可用资金</div><div class="summary-value" style="color:var(--颜色-买入)">${formatMoney(s.cash)}</div>
+        <div class="summary-label">可用资金</div><div class="summary-value" style="color:var(--green)">${formatMoney(s.cash)}</div>
       </div>
       <div class="summary-card" data-testid="metric-market-value" data-role="account-metric" data-metric="market-value">
-        <div class="summary-label">持仓市值(CNY)</div><div class="summary-value" style="color:var(--颜色-信息)">${formatMoney(s.holdingValue)}</div>
+        <div class="summary-label">持仓市值(CNY)</div><div class="summary-value" style="color:var(--blue)">${formatMoney(s.holdingValue)}</div>
       </div>
       <div class="summary-card" data-testid="metric-unrealized-pnl" data-role="account-metric" data-metric="unrealized-pnl">
-        <div class="summary-label">未实现盈亏</div><div class="summary-value" style="color:${s.totalUnrealizedPnL>=0?'var(--颜色-买入)':'var(--颜色-卖出)'}">${s.totalUnrealizedPnL>=0?'+':''}${s.totalUnrealizedPnL.toFixed(2)}</div>
+        <div class="summary-label">未实现盈亏</div><div class="summary-value" style="color:${s.totalUnrealizedPnL>=0?'var(--green)':'var(--red)'}">${s.totalUnrealizedPnL>=0?'+':''}${s.totalUnrealizedPnL.toFixed(2)}</div>
       </div>
       <div class="summary-card" data-testid="metric-today-pnl" data-role="account-metric" data-metric="today-pnl">
-        <div class="summary-label">今日收益</div><div class="summary-value" style="color:${s.todayRealizedPnL>=0?'var(--颜色-买入)':'var(--颜色-卖出)'}">${s.todayRealizedPnL>=0?'+':''}${s.todayRealizedPnL.toFixed(2)}</div>
+        <div class="summary-label">今日收益</div><div class="summary-value" style="color:${s.todayRealizedPnL>=0?'var(--green)':'var(--red)'}">${s.todayRealizedPnL>=0?'+':''}${s.todayRealizedPnL.toFixed(2)}</div>
       </div>
       <div class="summary-card" data-testid="metric-holding-count" data-role="account-metric" data-metric="holding-count">
         <div class="summary-label">持仓数量</div><div class="summary-value">${s.holdingCount} 只</div>
@@ -803,7 +850,7 @@ function renderPortfolioView(){
       </div><div class="holding-right">
         <div class="holding-pnl ${h.isUp?'up':'down'}">${h.isUp?'+':''}${h.unrealizedPnL.toFixed(2)}</div>
         <div class="holding-pct ${h.isUp?'up':'down'}">${h.isUp?'+':''}${h.unrealizedPnLRatio.toFixed(2)}%</div>
-        <div style="font-size:var(--字号-极小);color:var(--文字-弱);margin-top:2px">${h.isUp?'上涨':'下跌'}</div>
+        <div style="font-size:.7rem;color:var(--text-muted);margin-top:2px">${h.isUp?'上涨':'下跌'}</div>
       </div></div>`;
     }).join('');
     return;
@@ -821,8 +868,8 @@ function renderPortfolioView(){
   });
   const totalAssets=accountData.balance+holdingValue;
   summary.innerHTML=`<div class="summary-card"><div class="summary-label">总资产(CNY)</div><div class="summary-value">${formatMoney(totalAssets)}</div></div>
-    <div class="summary-card"><div class="summary-label">可用资金</div><div class="summary-value" style="color:var(--颜色-买入)">${formatMoney(accountData.balance)}</div></div>
-    <div class="summary-card"><div class="summary-label">持仓市值(CNY)</div><div class="summary-value" style="color:var(--颜色-信息)">${formatMoney(holdingValue)}</div></div>`;
+    <div class="summary-card"><div class="summary-label">可用资金</div><div class="summary-value" style="color:var(--green)">${formatMoney(accountData.balance)}</div></div>
+    <div class="summary-card"><div class="summary-label">持仓市值(CNY)</div><div class="summary-value" style="color:var(--blue)">${formatMoney(holdingValue)}</div></div>`;
   if(keys.length===0){ list.innerHTML='<div class="empty-state"><div class="icon">📭</div><p>暂无持仓</p></div>'; return; }
   list.innerHTML=keys.map(sym=>{
     const h=accountData.holdings[sym]; const stock=getAllStocks().find(s=>s.symbol===sym);
@@ -837,7 +884,7 @@ function renderPortfolioView(){
     </div><div class="holding-right">
       <div class="holding-pnl ${isUp?'up':'down'}">${isUp?'+':''}${pnl.toFixed(2)}</div>
       <div class="holding-pct ${isUp?'up':'down'}">${isUp?'+':''}${pnlPct.toFixed(2)}%</div>
-      <div style="font-size:var(--字号-极小);color:var(--文字-弱);margin-top:2px">${isUp?'上涨':'下跌'}</div>
+      <div style="font-size:.7rem;color:var(--text-muted);margin-top:2px">${isUp?'上涨':'下跌'}</div>
     </div></div>`;
   }).join('');
 }
@@ -1067,7 +1114,7 @@ function updateCurrentSymbolPanel(){
   document.getElementById('csName').textContent=selectedStock.name;
   document.getElementById('csCode').textContent=selectedStock.symbol+' · '+(selectedStock.sector||'');
   document.getElementById('csPrice').textContent=cur+selectedStock.price.toFixed(2);
-  document.getElementById('csPrice').style.color=isUp?'var(--颜色-买入)':'var(--颜色-卖出)';
+  document.getElementById('csPrice').style.color=isUp?'var(--green)':'var(--red)';
 
   const changeEl=document.getElementById('csChange');
   changeEl.textContent=`${isUp?'+':''}${change.toFixed(2)} (${isUp?'+':''}${pct.toFixed(2)}%)`;
@@ -1109,7 +1156,7 @@ function updateCurrentSymbolHolding(){
     const isUp=pnl>=0;
     el.style.display='block';
     el.innerHTML=`持有 ${h.qty}${rules.unit} · 成本 ${h.avgCost.toFixed(2)} · 浮盈 ${isUp?'+':''}${pnl.toFixed(2)}（${isUp?'+':''}${((selectedStock.price-h.avgCost)/h.avgCost*100).toFixed(2)}%）`;
-    el.style.color=isUp?'var(--颜色-买入)':'var(--颜色-卖出)';
+    el.style.color=isUp?'var(--green)':'var(--red)';
   } else {
     el.style.display='none';
   }
