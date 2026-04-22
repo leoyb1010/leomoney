@@ -8,7 +8,12 @@ const cors = require('cors');
 const path = require('path');
 const { getMarketStatus, shouldRefreshQuotes } = require('./lib/market');
 const { getQuotes, getStockQuote, searchSymbols } = require('./lib/quotes');
-const { getAccount, buy, sell, reset, createOrder, cancelOrder, getPendingOrders, checkPendingOrders, loadState, getWatchlist, addToWatchlist, removeFromWatchlist } = require('./lib/trading');
+const { 
+  getAccount, getAccountById, getAccounts, createAccount, switchAccount, updateAccount, deleteAccount, resetCurrentAccount,
+  buy, sell, reset, 
+  createOrder, cancelOrder, getPendingOrders, checkPendingOrders, 
+  getWatchlist, addToWatchlist, removeFromWatchlist 
+} = require('./lib/trading');
 const { 分析交易, 生成Agent总结, 生成决策输入, AGENT_PROMPT } = require('./src/analytics/tradeEngine');
 const { toCNY, getAllRates, conversionHint } = require('./lib/fx');
 
@@ -233,18 +238,44 @@ app.post('/api/orders/check', async (req, res) => {
   }
 });
 
+// ===== 账户管理 API（多账户升级） =====
+app.get('/api/accounts', (req, res) => {
+  res.json({ success: true, accounts: getAccounts(), currentAccountId: getAccount().accountId });
+});
+
+app.post('/api/accounts', (req, res) => {
+  const { accountName, balance, color } = req.body;
+  const result = createAccount(accountName || '新账户', balance || 1000000, color || '#3b82f6');
+  res.json(result);
+});
+
+app.post('/api/accounts/:id/switch', (req, res) => {
+  const result = switchAccount(req.params.id);
+  res.json(result);
+});
+
+app.patch('/api/accounts/:id', (req, res) => {
+  const result = updateAccount(req.params.id, req.body);
+  res.json(result);
+});
+
+app.delete('/api/accounts/:id', (req, res) => {
+  const result = deleteAccount(req.params.id);
+  res.json(result);
+});
+
 app.post('/api/account/reset', (req, res) => {
-  res.json(reset());
+  res.json(resetCurrentAccount());
 });
 
 // ===== 分析 API（新增，不改动已有路由） =====
 app.get('/api/analysis', (req, res) => {
   try {
-    const state = loadState();
-    const trades = state.history || [];
+    const account = getAccount();
+    const trades = account.history || [];
     const 分析结果 = 分析交易(trades);
     const 总结 = 生成Agent总结(分析结果);
-    res.json({ success: true, 分析: 分析结果, 总结 });
+    res.json({ success: true, accountId: account.accountId, 分析: 分析结果, 总结 });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -256,12 +287,12 @@ app.get('/api/agent/prompt', (req, res) => {
 
 app.post('/api/agent/decision-input', (req, res) => {
   try {
-    const state = loadState();
-    const trades = state.history || [];
+    const account = getAccount();
+    const trades = account.history || [];
     const 分析结果 = 分析交易(trades);
     const marketData = req.body.market || null;
     const 输入数据 = 生成决策输入(分析结果, marketData);
-    res.json({ success: true, input: 输入数据, prompt: AGENT_PROMPT });
+    res.json({ success: true, accountId: account.accountId, input: 输入数据, prompt: AGENT_PROMPT });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

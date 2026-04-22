@@ -5,6 +5,9 @@ let quotesData = { indices: [], astocks: [], hkstocks: [], usstocks: [], metals:
 let quoteStatus = null; // 行情刷新状态
 let accountData = { balance: 1000000, holdings: {}, history: [], pendingOrders: [] };
 let accountSummary = null;
+let accounts = []; // 账户列表
+let currentAccountId = null; // 当前账户 ID
+let pendingDeleteAccountId = null; // 待删除账户 ID
 let watchlist = []; // 自选列表
 let fxRates = { CNY: 1, USD: 7.25, HKD: 0.93 }; // 汇率缓存
 let currentView = 'quotes';
@@ -143,6 +146,155 @@ async function refreshQuotes(){
 async function refreshAccount(){
   const d=await apiGet('/api/account');
   if(d&&d.success){ accountData=d; updateBalance(); renderOrderList(); }
+  await refreshAccounts(); // 同时刷新账户列表
+}
+
+// 刷新账户列表并更新切换器 UI
+async function refreshAccounts(){
+  const d = await apiGet('/api/accounts');
+  if(!d || !d.success) return;
+  accounts = d.accounts || [];
+  currentAccountId = d.currentAccountId;
+  // 更新切换器按钮
+  const cur = accounts.find(a => a.accountId === currentAccountId);
+  if(cur){
+    document.getElementById('accountSwitcherName').textContent = cur.accountName;
+    const dot = document.getElementById('accountDot');
+    if(dot) dot.style.background = cur.color || '#3b82f6';
+  }
+  renderAccountList();
+}
+
+// 渲染下拉账户列表
+function renderAccountList(){
+  const el = document.getElementById('accountList');
+  if(!el) return;
+  if(accounts.length === 0){
+    el.innerHTML = '<div style="padding:12px 14px;color:var(--text-secondary);font-size:.82rem">暂无账户</div>';
+    return;
+  }
+  el.innerHTML = accounts.map(a => `
+    <div class="account-item ${a.accountId === currentAccountId ? 'active' : ''}" onclick="switchAccount('${a.accountId}')">
+      <span class="account-dot" style="background:${a.color || '#3b82f6'}"></span>
+      <div class="account-item-info">
+        <div class="account-item-name">${a.accountName}</div>
+        <div class="account-item-meta">资金 ${formatMoney(a.balance)}</div>
+      </div>
+      ${a.accountId !== currentAccountId ? `
+        <div class="account-item-actions" onclick="event.stopPropagation()">
+          ${accounts.length > 1 ? `<button class="account-item-action-btn danger" onclick="showDeleteAccountModal('${a.accountId}')">删除</button>` : ''}
+        </div>` : ''}
+    </div>
+  `).join('');
+}
+
+// 切换账户
+async function switchAccount(id){
+  if(id === currentAccountId){ closeAccountDropdown(); return; }
+  const r = await apiPost('/api/accounts/' + id + '/switch');
+  if(r && r.success){
+    currentAccountId = id;
+    closeAccountDropdown();
+    // 刷新所有数据
+    await refreshAccounts();
+    await refreshAccount();
+    await refreshAccountSummary();
+    await refreshWatchlist();
+    if(currentView === 'portfolio') renderPortfolioView();
+    if(currentView === 'history') renderHistoryView();
+    notify('已切换到 ' + (accounts.find(a=>a.accountId===id)?.accountName || ''), 'info');
+  } else {
+    notify('切换失败: ' + (r.error || '未知错误'), 'error');
+  }
+}
+
+// 切换下拉显隐
+function toggleAccountDropdown(){
+  const el = document.getElementById('accountDropdown');
+  if(!el) return;
+  el.classList.toggle('open');
+}
+function closeAccountDropdown(){
+  const el = document.getElementById('accountDropdown');
+  if(el) el.classList.remove('open');
+}
+
+// 点击空白关闭下拉
+document.addEventListener('click', function(e){
+  const sw = document.getElementById('accountSwitcher');
+  if(sw && !sw.contains(e.target)) closeAccountDropdown();
+});
+
+// ── 新建账户弹窗 ──
+function showCreateAccountModal(){
+  closeAccountDropdown();
+  document.getElementById('newAccountName').value = '';
+  document.getElementById('newAccountBalance').value = '1000000';
+  // 重置颜色选择
+  document.querySelectorAll('.color-option').forEach(o => o.classList.remove('selected'));
+  const first = document.querySelector('.color-option');
+  if(first) first.classList.add('selected');
+  selectedAccountColor = '#3b82f6';
+  document.getElementById('createAccountModal').style.display = 'flex';
+  document.getElementById('newAccountName').focus();
+}
+function closeCreateAccountModal(){
+  document.getElementById('createAccountModal').style.display = 'none';
+}
+async function confirmCreateAccount(){
+  const name = document.getElementById('newAccountName').value.trim();
+  const balance = parseFloat(document.getElementById('newAccountBalance').value) || 1000000;
+  if(!name){ notify('请输入账户名称', 'error'); return; }
+  const color = selectedAccountColor || '#3b82f6';
+  const r = await apiPost('/api/accounts', { accountName: name, balance, color });
+  if(r && r.success){
+    closeCreateAccountModal();
+    await refreshAccounts();
+    notify('账户 "' + name + '" 创建成功', 'success');
+  } else {
+    notify('创建失败: ' + (r.error || '未知错误'), 'error');
+  }
+}
+
+// 颜色选择
+let selectedAccountColor = '#3b82f6';
+document.addEventListener('click', function(e){
+  const opt = e.target.closest('.color-option');
+  if(opt){
+    document.querySelectorAll('.color-option').forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedAccountColor = opt.dataset.color;
+  }
+});
+
+// ── 删除账户弹窗 ──
+function showDeleteAccountModal(id){
+  const acc = accounts.find(a => a.accountId === id);
+  if(!acc) return;
+  if(accounts.length <= 1){ notify('至少保留一个账户', 'error'); return; }
+  pendingDeleteAccountId = id;
+  document.getElementById('deleteAccountName').textContent = acc.accountName;
+  document.getElementById('deleteAccountModal').style.display = 'flex';
+}
+function closeDeleteAccountModal(){
+  document.getElementById('deleteAccountModal').style.display = 'none';
+  pendingDeleteAccountId = null;
+}
+async function confirmDeleteAccount(){
+  if(!pendingDeleteAccountId) return;
+  const id = pendingDeleteAccountId;
+  const r = await apiDelete('/api/accounts/' + id);
+  if(r && r.success){
+    closeDeleteAccountModal();
+    await refreshAccounts();
+    // 如果删的是当前账户，自动切换到第一个
+    if(id === currentAccountId && accounts.length > 0){
+      await switchAccount(accounts[0].accountId);
+    }
+    notify('账户已删除', 'info');
+  } else {
+    notify('删除失败: ' + (r.error || '未知错误'), 'error');
+  }
 }
 async function refreshWatchlist(){
   const d=await apiGet('/api/watchlist');
@@ -923,7 +1075,9 @@ function renderHistoryView(){
 /* ===== UTILS ===== */
 function updateBalance(){ document.getElementById('headerBalance').textContent=formatMoney(accountData.balance); }
 async function resetAccount(){
-  if(confirm('确定重置当前模拟账户？所有持仓、记录和条件单将被清空（自选不受影响）。')){
+  const cur = accounts.find(a => a.accountId === currentAccountId);
+  const curName = cur ? cur.accountName : '当前';
+  if(confirm(`确定重置【${curName}】？所有持仓、成交记录和条件单将被清空（自选不受影响）。`)){
     const r=await apiPost('/api/account/reset');
     if(r&&r.success){ notify(r.message,'info'); await refreshAccount(); await refreshAccountSummary(); if(currentView==='portfolio') renderPortfolioView(); }
   }

@@ -6,14 +6,15 @@ AI-Driven Simulated Trading Platform | AI 驱动模拟交易平台
 
 ## Features
 
+- 👤 **多账户平台** — 创建/切换/删除账户，资金/持仓/自选/条件单/复盘完全隔离
 - 📊 **全市场行情** — A股/港股/美股/贵金属/加密货币实时数据（新浪财经 API）
 - 🔍 **全市场搜索** — 东方财富搜索 API，支持股票/基金/ETF 全品种检索
 - 📈 **K线图** — Canvas 绘制，鼠标悬停十字线+数据浮框交互
 - 💰 **模拟交易** — 买入/卖出，100 万虚拟资金起步
-- 📋 **条件单** — 价格触发自动执行（≥/≤）
-- 📁 **持仓管理** — 实时盈亏计算/资产总览
+- 📋 **条件单** — 价格触发自动执行（≥/≤），多账户独立触发
+- 📁 **持仓管理** — 实时盈亏计算/资产总览，汇率统一折算 CNY
 - 🕐 **市场状态** — 自动检测 A股/港股/美股/加密交易时段，休市行情冻结
-- 🧠 **交易分析** — 胜率/盈亏比/最大回撤/策略统计
+- 🧠 **交易分析** — 胜率/盈亏比/最大回撤/策略统计（按账户隔离）
 - 🤖 **Agent 决策** — 结构化决策输入/输出，LLM 可直接对接
 - 🏷️ **策略标签** — 交易记录支持 strategy 字段，按策略统计表现
 
@@ -22,7 +23,7 @@ AI-Driven Simulated Trading Platform | AI 驱动模拟交易平台
 - **Backend**: Node.js + Express
 - **Frontend**: 纯原生 HTML/CSS/JS（无框架依赖）
 - **Data**: 新浪财经 + 东方财富 API（免费，无需 API Key）
-- **持久化**: JSON 文件（`data/state.json`）
+- **持久化**: JSON 文件（`data/state.json`，多账户容器格式，旧版自动迁移）
 
 ## Quick Start
 
@@ -67,9 +68,20 @@ node cli.js auto
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/analysis` | GET | 交易分析（持仓/指标/盈亏明细/策略统计） |
+| `/api/analysis` | GET | 交易分析（当前账户，持仓/指标/盈亏明细/策略统计） |
 | `/api/agent/prompt` | GET | 获取 Agent 决策提示词 |
-| `/api/agent/decision-input` | POST | 生成 Agent 决策输入数据 |
+| `/api/agent/decision-input` | POST | 生成 Agent 决策输入数据（当前账户） |
+
+### 账户管理 API
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/accounts` | GET | 获取账户列表及当前账户 ID |
+| `/api/accounts` | POST | 创建新账户（name, balance, color） |
+| `/api/accounts/:id/switch` | POST | 切换当前账户 |
+| `/api/accounts/:id` | PATCH | 更新账户信息 |
+| `/api/accounts/:id` | DELETE | 归档账户（软删除） |
+| `/api/account/reset` | POST | 重置当前账户（不影响其他账户） |
 
 Agent 输出格式：
 ```json
@@ -107,9 +119,31 @@ leomoney/
 
 ## Changelog
 
-### v1.3.0 — 2026-04-22
+### v1.5.0 — 2026-04-22
 
-**🔧 产品化 + Agent 双模式升级**
+**👤 多账户平台化升级**
+
+- 底层存储从单账户 state 重构为 accounts 容器模型：`{ currentAccountId, accounts: { id: {...} } }`
+- 旧版单账户 state.json 自动迁移为"默认账户"，零人工干预
+- 新增账户管理 API：GET/POST/PATCH/DELETE /api/accounts，POST /accounts/:id/switch
+- 所有业务函数（buy/sell/createOrder/getWatchlist 等）改为基于 currentAccountId 操作
+- 条件单检查改为遍历所有账户独立触发，执行结果落回对应账户
+- 重置账户只影响当前账户，不再全局重置
+- 前端新增账户切换下拉（Header 右侧）：切换/新建/删除/颜色标签
+- 新增账户创建弹窗（名称+初始资金+主题色选择）
+- 新增账户删除确认弹窗，至少保留1个账户
+- 切换账户后全站数据同步刷新（资金/持仓/自选/条件单/复盘）
+- createAccount 支持 color 参数传递
+- 修复 server.js POST /api/accounts 参数解构错误
+
+### v1.4.0 — 2026-04-22
+
+**⭐ 自选系统 + 行情状态 + 交易规则 + 汇率感知**
+
+- 自选系统：watchlist CRUD + 热门/自选切换 + 当前标的加自选 + 空状态
+- 汇率层：lib/fx.js + toCNY + /api/fx + /api/account/summary 折算口径
+- 多市场交易规则：getCategoryRules() 按品类步进/单位
+- 行情状态可视化：市场检测 + 休市冻结提示
 
 - 建立统一设计 token 体系（tokens.css）：色彩/间距/字号/圆角/阴影/动效
 - 建立基础组件样式库（components.css）：面板/指标卡/按钮/标签/状态徽标/表单/四态/列表项/系统消息容器

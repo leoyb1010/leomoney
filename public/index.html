@@ -14,7 +14,7 @@
 <!-- 系统消息容器（Agent 可读取） -->
 <div id="system-feedback" data-testid="system-feedback" data-role="system-feedback" aria-live="polite"></div>
 
-<div class="header">
+  <div class="header">
   <div class="logo">
     <div class="logo-icon">L</div>
     <div class="logo-text">Leo<span>money</span></div>
@@ -27,6 +27,21 @@
     <div class="balance-display" data-testid="header-balance" data-role="account-balance" data-metric="cash">
       <span class="balance-label">可用资金</span>
       <span class="balance-value" id="headerBalance">¥1,000,000.00</span>
+    </div>
+    <!-- 账户切换器 -->
+    <div class="account-switcher" id="accountSwitcher">
+      <button class="account-switcher-btn" id="accountSwitcherBtn" onclick="toggleAccountDropdown()" aria-label="切换账户">
+        <span class="account-dot" id="accountDot" style="background:#3b82f6"></span>
+        <span class="account-name" id="accountSwitcherName">默认账户</span>
+        <span class="account-caret">▼</span>
+      </button>
+      <div class="account-dropdown" id="accountDropdown">
+        <div class="account-dropdown-header">切换账户</div>
+        <div class="account-list" id="accountList"></div>
+        <div class="account-dropdown-footer">
+          <button class="account-action-btn" onclick="showCreateAccountModal()">+ 新建账户</button>
+        </div>
+      </div>
     </div>
     <button class="reset-btn" data-testid="reset-account" aria-label="重置账户" onclick="resetAccount()">重置账户</button>
   </div>
@@ -262,6 +277,61 @@
 
 <!-- 保留旧通知区兼容 -->
 <div class="notification" id="notification" data-testid="notification"></div>
+
+<!-- 账户创建弹窗 -->
+<div class="modal" id="createAccountModal" style="display:none">
+  <div class="modal-backdrop" onclick="closeCreateAccountModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">新建账户</div>
+      <button class="modal-close" onclick="closeCreateAccountModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>账户名称</label>
+        <input type="text" id="newAccountName" class="form-input" placeholder="例如：A股实盘、港股模拟" maxlength="20">
+      </div>
+      <div class="form-group">
+        <label>初始资金</label>
+        <input type="number" id="newAccountBalance" class="form-input" placeholder="1000000" value="1000000" min="0">
+      </div>
+      <div class="form-group">
+        <label>主题色</label>
+        <div class="color-picker" id="accountColorPicker">
+          <span class="color-option selected" data-color="#3b82f6" style="background:#3b82f6"></span>
+          <span class="color-option" data-color="#10b981" style="background:#10b981"></span>
+          <span class="color-option" data-color="#f59e0b" style="background:#f59e0b"></span>
+          <span class="color-option" data-color="#ef4444" style="background:#ef4444"></span>
+          <span class="color-option" data-color="#8b5cf6" style="background:#8b5cf6"></span>
+          <span class="color-option" data-color="#06b6d4" style="background:#06b6d4"></span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeCreateAccountModal()">取消</button>
+      <button class="btn-primary" onclick="confirmCreateAccount()">创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- 删除确认弹窗 -->
+<div class="modal" id="deleteAccountModal" style="display:none">
+  <div class="modal-backdrop" onclick="closeDeleteAccountModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">删除账户</div>
+      <button class="modal-close" onclick="closeDeleteAccountModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>确定要删除账户 <strong id="deleteAccountName"></strong> 吗？</p>
+      <p style="color:var(--text-secondary);font-size:.85rem;margin-top:8px">账户资产和交易历史将永久清除，此操作不可恢复。</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeDeleteAccountModal()">取消</button>
+      <button class="btn-danger" onclick="confirmDeleteAccount()">删除</button>
+    </div>
+  </div>
+</div>
 
 <script src="/js/app.js"></script>
 </body>
