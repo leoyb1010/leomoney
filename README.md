@@ -7,12 +7,12 @@ AI-Driven Simulated Trading Platform | AI 驱动模拟交易平台
 ## Features
 
 - 👤 **多账户平台** — 创建/切换/删除账户，资金/持仓/自选/条件单/复盘完全隔离
+- 🏠 **Dashboard 总览** — 总资产/资金/持仓/KPI + 市场动态 + 关注标的 + 最近成交
+- 📋 **条件单管理** — 独立订单页，统计待触发/已执行/失败，完整生命周期管理
 - 📊 **全市场行情** — A股/港股/美股/贵金属/加密货币实时数据（新浪财经 API）
 - 🔍 **全市场搜索** — 东方财富搜索 API，支持股票/基金/ETF 全品种检索
 - 📈 **K线图** — Canvas 绘制，鼠标悬停十字线+数据浮框交互
 - 💰 **模拟交易** — 买入/卖出，100 万虚拟资金起步
-- 📋 **条件单** — 价格触发自动执行（≥/≤），多账户独立触发
-- 📁 **持仓管理** — 实时盈亏计算/资产总览，汇率统一折算 CNY
 - 🕐 **市场状态** — 自动检测 A股/港股/美股/加密交易时段，休市行情冻结
 - 🧠 **交易分析** — 胜率/盈亏比/最大回撤/策略统计（按账户隔离）
 - 🤖 **Agent 决策** — 结构化决策输入/输出，LLM 可直接对接
@@ -20,8 +20,8 @@ AI-Driven Simulated Trading Platform | AI 驱动模拟交易平台
 
 ## Tech Stack
 
-- **Backend**: Node.js + Express
-- **Frontend**: 纯原生 HTML/CSS/JS（无框架依赖）
+- **Backend**: Node.js + Express（路由层 / services 层 / repositories 层 / domain 层四层分离）
+- **Frontend**: 纯原生 HTML/CSS/JS，模块化架构（main.js 统一入口 + features/ 功能域模块）
 - **Data**: 新浪财经 + 东方财富 API（免费，无需 API Key）
 - **持久化**: JSON 文件（`data/state.json`，多账户容器格式，旧版自动迁移）
 
@@ -98,26 +98,49 @@ Agent 输出格式：
 
 ```
 leomoney/
-├── server.js              # Express 服务入口
-├── cli.js                 # 命令行工具（OpenClaw 可直接调用）
+├── server.js                 # Express 服务入口（轻路由层）
+├── cli.js                    # 命令行工具（OpenClaw 可直接调用）
 ├── lib/
-│   ├── quotes.js          # 行情数据（新浪+东方财富）
-│   ├── trading.js         # 交易引擎
-│   └── market.js          # 市场状态检测
+│   ├── quotes.js             # 行情数据（新浪+东方财富）
+│   ├── trading.js            # 交易引擎（兼容层，逐步迁移到 services）
+│   ├── market.js             # 市场状态检测
+│   └── fx.js                 # 汇率层
 ├── src/
+│   ├── server/
+│   │   ├── routes/           # 路由层（market/account/trade/analysis）
+│   │   ├── services/         # 服务层（account/trading/order/watchlist/summary）
+│   │   ├── repositories/     # 持久化层（stateRepository）
+│   │   └── domain/            # 领域模型（models.js）
 │   └── analytics/
-│       ├── tradeEngine.js  # 分析总入口 + Agent 决策
-│       ├── position.js     # 持仓计算（FIFO 成本）
-│       └── metrics.js      # 指标计算（胜率/回撤/策略统计）
+│       ├── tradeEngine.js     # 分析总入口 + Agent 决策
+│       ├── position.js        # 持仓计算（FIFO 成本）
+│       └── metrics.js         # 指标计算（胜率/回撤/策略统计）
 ├── public/
-│   ├── index.html          # 主页面
-│   ├── css/app.css         # 样式
-│   └── js/app.js           # 前端逻辑
-├── data/                   # 运行时数据（gitignore）
+│   ├── index.html             # 主页面（无内联事件）
+│   ├── css/                   # 样式（tokens/components/app）
+│   └── js/
+│       ├── main.js            # 前端统一入口（事件绑定 + 初始化）
+│       ├── app.js             # 兼容壳（15 行）
+│       └── features/          # 功能模块（market/trade/portfolio/dashboard/...）
+├── data/                      # 运行时数据（gitignore）
 └── package.json
 ```
 
 ## Changelog
+
+### v1.6.0 — 2026-04-22
+
+**架构重构 + Dashboard + 订单管理页**
+
+- 后端分层：server.js 重构为轻路由层，trading.js 拆分为 accountService/tradingService/orderService/watchlistService/summaryService，stateRepository 统一持久化层
+- 前端模块化：main.js 统一入口，features/ 接管所有业务逻辑，app.js 退化为 15 行兼容壳
+- index.html 去除所有内联 onclick/oninput，改为 JS 事件委托绑定
+- 新增 Dashboard 总览首页（KPI + 市场动态 + 关注标的 + 最近成交）
+- 新增独立订单管理页（条件单统计 + 生命周期管理 + 取消功能）
+- Sidebar 重整：总览 > 市场 > 交易 > 资产 > 订单 > 复盘
+- 修复条件单 API 参数名（triggerType/triggerPrice → 兼容 type/price）
+- 修复 getStockQuote symbol 归一化（.SS/.HK/.US 后缀匹配）
+- 切换账户后 Dashboard/Orders 同步刷新
 
 ### v1.5.0 — 2026-04-22
 
