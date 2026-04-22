@@ -101,6 +101,19 @@ app.get('/api/account/summary', async (req, res) => {
     ['astocks', 'hkstocks', 'usstocks', 'metals', 'crypto'].forEach(cat => {
       (quotes[cat] || []).forEach(s => { priceMap[s.symbol] = { price: s.price, currency: s.currency || 'CNY' }; });
     });
+    // 对不在热门列表中的持仓，逐个查实时价格
+    const missingSymbols = Object.keys(account.holdings).filter(sym => !priceMap[sym]);
+    if (missingSymbols.length > 0) {
+      const quotePromises = missingSymbols.map(async sym => {
+        try {
+          const q = await getStockQuote(sym);
+          if (q && q.price) {
+            priceMap[sym] = { price: q.price, currency: q.currency || 'CNY' };
+          }
+        } catch(e) { /* 静默失败，后面会 fallback 到 avgCost */ }
+      });
+      await Promise.all(quotePromises);
+    }
     // 用现价计算每只持仓市值（统一折算CNY）
     let holdingValueCNY = 0;
     const holdingDetails = [];
