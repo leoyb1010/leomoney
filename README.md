@@ -128,6 +128,19 @@ leomoney/
 
 ## Changelog
 
+### v1.6.1 — 2026-04-23
+
+**交易核心修补 + 数据一致性收口**
+
+- 修复条件单创建接口字段语义错误，严格区分 `type=buy|sell` 与 `triggerType=gte|lte`
+- 条件单服务增加输入校验，拒绝无效订单类型、触发条件、价格和数量
+- 条件单执行兼容 `.SS/.HK/.US` 后缀 symbol 匹配，避免运行中订单因代码格式不同而永远不触发
+- 账户查询统一过滤 archived 账户，避免“已删除账户”继续参与切换和日常读取
+- 账户写操作改为串行 state transaction，降低 JSON 持久化并发覆盖风险
+- `todayRealizedPnL` 改为复用成交盈亏明细计算，不再错误读取当前剩余持仓均价
+- server 启动日志改为读取 `package.json` 版本，消除运行版本和 README/package 不一致
+- 移除行情请求中的 `rejectUnauthorized: false`，恢复默认 TLS 校验
+
 ### v1.6.0 — 2026-04-22
 
 **架构重构 + Dashboard + 订单管理页**

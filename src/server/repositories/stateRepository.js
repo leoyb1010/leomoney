@@ -8,6 +8,7 @@ const path = require('path');
 
 const DEFAULT_BALANCE = 1000000;
 const STATE_FILE = path.join(__dirname, '..', '..', '..', 'data', 'state.json');
+let writeChain = Promise.resolve();
 
 function ensureDataDir() {
   const dir = path.dirname(STATE_FILE);
@@ -91,4 +92,16 @@ function saveState(state) {
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
 }
 
-module.exports = { loadState, saveState, migrateIfNeeded, DEFAULT_BALANCE };
+function withStateTransaction(mutator) {
+  const run = async () => {
+    const state = loadState();
+    const result = await mutator(state);
+    saveState(state);
+    return result;
+  };
+  const next = writeChain.then(run, run);
+  writeChain = next.then(() => undefined, () => undefined);
+  return next;
+}
+
+module.exports = { loadState, saveState, withStateTransaction, migrateIfNeeded, DEFAULT_BALANCE };
