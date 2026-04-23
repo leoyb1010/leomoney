@@ -39,15 +39,14 @@ export async function renderDashboard() {
 }
 
 function setKPI(id, value, sub, valueStyle) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const vEl = el.querySelector ? el.querySelector('.kpi-value') : null;
-  const sEl = el.querySelector ? el.querySelector('.kpi-sub') : null;
-  if (vEl) {
-    vEl.textContent = value;
-    if (valueStyle) vEl.style.cssText = valueStyle;
-    if (sEl) sEl.textContent = sub;
-  }
+  const valueEl = document.getElementById(id);
+  if (!valueEl) return;
+  valueEl.textContent = value;
+  valueEl.style.cssText = valueStyle || '';
+
+  const card = valueEl.closest('.kpi-card');
+  const subEl = card ? card.querySelector('.kpi-sub') : null;
+  if (subEl) subEl.textContent = sub || '';
 }
 
 export function renderDashboardStats() {
@@ -129,16 +128,32 @@ export async function renderOrders(filter) {
   const pEl = document.getElementById('ostatPending');
   const eEl = document.getElementById('ostatExecuted');
   const fEl = document.getElementById('ostatFailed');
-  if (pEl) pEl.textContent = pending.length;
-  if (eEl) eEl.textContent = history.filter(h => h.type === 'sell').length;
-  if (fEl) fEl.textContent = pending.filter(o => o.status === 'failed').length;
+  const executedOrders = pending.filter(o => o.status === 'executed');
+  const failedOrders = pending.filter(o => o.status === 'failed');
+  const pendingOnly = pending.filter(o => o.status === 'pending');
+
+  if (pEl) pEl.textContent = pendingOnly.length;
+  if (eEl) eEl.textContent = executedOrders.length;
+  if (fEl) fEl.textContent = failedOrders.length;
 
   if (currentOrderFilter === 'pending') {
-    if (!pending.length) {
+    if (!pendingOnly.length) {
       el.innerHTML = '<div class="empty-state"><p>暂无待触发条件单</p><p style="font-size:.8rem;margin-top:4px">在交易面板创建价格触发单</p></div>';
       return;
     }
-    el.innerHTML = pending.map(o => orderCardHTML(o)).join('');
+    el.innerHTML = pendingOnly.map(o => orderCardHTML(o)).join('');
+  } else if (currentOrderFilter === 'executed') {
+    if (!executedOrders.length) {
+      el.innerHTML = '<div class="empty-state"><p>暂无已执行条件单</p></div>';
+      return;
+    }
+    el.innerHTML = executedOrders.map(o => orderCardHTML(o)).join('');
+  } else if (currentOrderFilter === 'failed') {
+    if (!failedOrders.length) {
+      el.innerHTML = '<div class="empty-state"><p>暂无失败条件单</p></div>';
+      return;
+    }
+    el.innerHTML = failedOrders.map(o => orderCardHTML(o)).join('');
   } else if (currentOrderFilter === 'history') {
     if (!history.length) {
       el.innerHTML = '<div class="empty-state"><p>暂无成交记录</p></div>';

@@ -7,6 +7,11 @@ import { toCNY, getCurrencySymbol } from './format.js';
 import { getAllStocks } from './market.js';
 import { refreshAccount, refreshAccountSummary, notify } from './account.js';
 
+export function initQuickTrade() {
+  const input = document.getElementById('quickSymbol');
+  if (input) input.focus();
+}
+
 export async function quickLookup() {
   const symInput = document.getElementById('quickSymbol');
   const resultEl = document.getElementById('quickQuoteResult');

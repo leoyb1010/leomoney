@@ -224,10 +224,10 @@
             <label class="form-label">委托数量（<span id="qtyUnitLabel">股</span>）</label>
             <input type="number" class="form-input" id="tradeQty" data-testid="trade-qty" step="100" min="100" placeholder="100的整数倍">
             <div class="quantity-presets">
-              <button class="preset-btn" data-qty="100">100</button>
-              <button class="preset-btn" data-qty="500">500</button>
-              <button class="preset-btn" data-qty="1000">1000</button>
-              <button class="preset-btn" id="qtyMaxBtn">全仓</button>
+              <button class="preset-btn" type="button" data-qty="100">100</button>
+              <button class="preset-btn" type="button" data-qty="500">500</button>
+              <button class="preset-btn" type="button" data-qty="1000">1000</button>
+              <button class="preset-btn" type="button" id="qtyMaxBtn">全仓</button>
             </div>
             <div class="form-field-hint" id="qtyHint" data-testid="qty-hint" data-role="qty-hint"></div>
           </div>
@@ -269,15 +269,15 @@
       <div class="trade-view-header">💰 快捷交易（支持全市场）</div>
       <div class="trade-grid">
         <div>
-          <div class="form-group" style="margin-bottom:14px"><label class="form-label">资产代码</label><input type="text" class="form-input" id="quickSymbol" data-testid="quick-symbol" placeholder="如 600519 / BTC / XAU"></div>
+          <div class="form-group" style="margin-bottom:14px"><label class="form-label">资产代码</label><div style="display:flex;gap:8px"><input type="text" class="form-input" id="quickSymbol" data-testid="quick-symbol" placeholder="如 600519 / BTC / XAU"><button class="submit-btn" type="button" id="quickLookupBtn" style="width:auto;padding:0 16px">查询</button></div></div>
           <div class="quick-quote-card" id="quickQuoteResult" data-testid="quick-quote-result" data-role="quick-quote"><div class="empty-state"><p>输入代码查看行情</p></div></div>
         </div>
         <div>
           <div class="form-group" style="margin-bottom:14px"><label class="form-label">委托价格</label><input type="number" class="form-input" id="quickPrice" data-testid="quick-price" step="0.01" placeholder="限价"></div>
           <div class="form-group" style="margin-bottom:14px"><label class="form-label">委托数量</label><input type="number" class="form-input" id="quickQty" data-testid="quick-qty" step="100" min="100" placeholder="100的整数倍"></div>
           <div style="display:flex;gap:10px">
-            <button class="submit-btn buy-btn action-button buy" id="quickBuyBtn" data-testid="quick-buy" data-side="buy" aria-label="快捷买入下单" style="flex:1">买入下单</button>
-            <button class="submit-btn sell-btn action-button sell" id="quickSellBtn" data-testid="quick-sell" data-side="sell" aria-label="快捷卖出下单" style="flex:1">卖出下单</button>
+            <button class="submit-btn buy-btn action-button buy" type="button" id="quickBuyBtn" data-testid="quick-buy" data-side="buy" aria-label="快捷买入下单" style="flex:1">买入下单</button>
+            <button class="submit-btn sell-btn action-button sell" type="button" id="quickSellBtn" data-testid="quick-sell" data-side="sell" aria-label="快捷卖出下单" style="flex:1">卖出下单</button>
           </div>
         </div>
       </div>
@@ -310,10 +310,10 @@
         </div>
       </div>
       <div class="orders-filter" data-testid="orders-filter" style="margin-bottom:16px;display:flex;gap:8px">
-        <button class="preset-btn active" data-ofilter="pending">全部</button>
-        <button class="preset-btn" data-ofilter="pending">待触发</button>
-        <button class="preset-btn" data-ofilter="executed">已执行</button>
-        <button class="preset-btn" data-ofilter="failed">失败</button>
+        <button class="preset-btn" type="button" data-ofilter="all">全部</button>
+        <button class="preset-btn active" type="button" data-ofilter="pending">待触发</button>
+        <button class="preset-btn" type="button" data-ofilter="executed">已执行</button>
+        <button class="preset-btn" type="button" data-ofilter="failed">失败</button>
       </div>
       <div id="ordersList" data-testid="orders-list" data-role="orders-list"></div>
     </div>
@@ -322,9 +322,9 @@
     <div class="view history-view" id="view-history" data-testid="view-history" data-role="view" data-view="history">
       <div class="history-header">📋 成交记录</div>
       <div class="history-filter" data-testid="history-filter" data-role="history-filter" style="margin-bottom:16px;display:flex;gap:8px">
-        <button class="preset-btn active" data-filter="all">全部</button>
-        <button class="preset-btn" data-filter="buy">买入</button>
-        <button class="preset-btn" data-filter="sell">卖出</button>
+        <button class="preset-btn active" type="button" data-filter="all">全部</button>
+        <button class="preset-btn" type="button" data-filter="buy">买入</button>
+        <button class="preset-btn" type="button" data-filter="sell">卖出</button>
       </div>
       <div id="historyList" data-testid="history-list" data-role="history-list"></div>
     </div>

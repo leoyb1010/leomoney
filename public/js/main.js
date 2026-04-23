@@ -58,7 +58,7 @@ function bindEvents() {
   if (dashQuickBuy) {
     dashQuickBuy.addEventListener('click', () => {
       switchView('trade');
-      document.querySelector('.sidebar-item[data-view="trade"]')?.click();
+      import('./features/quickTrade.js').then(m => m.initQuickTrade && m.initQuickTrade());
     });
   }
 
@@ -103,6 +103,16 @@ function bindEvents() {
       import('./features/stockList.js').then(m => m.filterStocks(e.target.value));
     });
   }
+
+  // 数量快捷按钮
+  document.querySelectorAll('.quantity-presets .preset-btn[data-qty]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const qty = parseFloat(btn.dataset.qty || '0');
+      if (!isNaN(qty)) {
+        import('./features/trade.js').then(m => m.setQty(qty));
+      }
+    });
+  });
 
   // 交易类型切换
   document.querySelectorAll('.trade-tab').forEach(tab => {
@@ -156,6 +166,15 @@ function bindEvents() {
   if (quickLookupBtn) {
     quickLookupBtn.addEventListener('click', () => {
       import('./features/quickTrade.js').then(m => m.quickLookup());
+    });
+  }
+  const quickSymbolInput = document.getElementById('quickSymbol');
+  if (quickSymbolInput) {
+    quickSymbolInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        import('./features/quickTrade.js').then(m => m.quickLookup());
+      }
     });
   }
   const quickBuyBtn = document.getElementById('quickBuyBtn');
