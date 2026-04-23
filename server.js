@@ -3,6 +3,8 @@
  * 轻路由层：只负责初始化、中间件、路由注册、静态资源、错误处理
  */
 
+require('dotenv').config({ override: true });
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');

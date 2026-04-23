@@ -63,18 +63,18 @@ router.get('/agent/log', (req, res) => {
 
 router.get('/agent/status', (req, res) => {
   try {
-    const { isLLMReady, PROVIDERS } = require('../../../lib/agent/brain');
+    const { isLLMReady, getLLMInfo } = require('../../../lib/agent/brain');
     const { breaker } = require('../../../lib/agent/circuitBreaker');
     const { riskManager } = require('../../../lib/agent/riskManager');
     const { getAgentConfig } = require('../../../lib/scheduler');
-    const provider = process.env.LLM_PROVIDER || 'deepseek';
+    const llmInfo = getLLMInfo();
     const agentConfig = getAgentConfig();
     res.json({
       success: true,
       llmReady: isLLMReady(),
-      provider,
-      model: process.env.LLM_MODEL || PROVIDERS[provider]?.model,
+      ...llmInfo,
       searchConfigured: !!process.env.SEARCH_API_URL,
+      searchProvider: process.env.SEARCH_API_URL === 'tavily' ? 'tavily' : (process.env.SEARCH_API_URL || 'none'),
       agent: agentConfig,
       circuitBreaker: breaker.getStatus(),
       risk: riskManager.getStatus(),
