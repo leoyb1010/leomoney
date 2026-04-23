@@ -4,6 +4,7 @@
 import { store } from './store.js';
 import { apiGet, apiPost, apiDelete } from './api.js';
 import { formatMoney } from './format.js';
+import { renderOrderList } from './trade.js';
 
 export async function refreshAccount() {
   const d = await apiGet('/api/account');
@@ -22,6 +23,7 @@ export async function refreshAccounts() {
   store.currentAccountId = d.currentAccountId;
   const cur = store.accounts.find(a => a.accountId === store.currentAccountId);
   if (cur) {
+    store.currentAccountName = cur.accountName;
     const nameEl = document.getElementById('accountSwitcherName');
     const dotEl = document.getElementById('accountDot');
     if (nameEl) nameEl.textContent = cur.accountName;
@@ -174,7 +176,10 @@ export async function refreshAccountSummary() {
 
 export async function refreshWatchlist() {
   const d = await apiGet('/api/watchlist');
-  if (d && d.success) store.watchlist = d.watchlist || [];
+  if (d && d.success) {
+    store.watchlist = d.watchlist || [];
+    store.watchlistData = d.watchlist || [];
+  }
 }
 
 export async function refreshFx() {

@@ -6,7 +6,7 @@
 import { store } from './features/store.js';
 import { refreshMarketStatus } from './features/market.js';
 import { refreshQuotes } from './features/market.js';
-import { refreshAccount, refreshAccountSummary, refreshWatchlist, refreshFx, refreshAccounts, renderAccountSwitcher } from './features/account.js';
+import { refreshAccount, refreshAccountSummary, refreshWatchlist, refreshFx, refreshAccounts } from './features/account.js';
 import { renderStockList } from './features/stockList.js';
 import { renderIndices } from './features/indices.js';
 import { selectStock } from './features/trade.js';
@@ -15,6 +15,10 @@ import { loadAnalysis } from './features/analysis.js';
 import { renderDashboardStats, renderDashboard } from './features/dashboard.js';
 import { startTick } from './features/tick.js';
 import { switchView, setMarketCategory, setListMode } from './features/views.js';
+import { notify } from './features/account.js';
+
+// 把 notify 挂到全局，供所有模块使用
+window.notify = notify;
 
 // 绑定全局事件（替代 index.html 内联 onclick）
 function bindEvents() {
@@ -252,30 +256,47 @@ function bindEvents() {
   });
 }
 
+// 全局错误捕获（便于诊断）
+window.addEventListener('error', (e) => {
+  console.error('Global error:', e.error);
+  const fb = document.getElementById('system-feedback');
+  if (fb) fb.textContent = '系统错误: ' + (e.error?.message || e.message);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('Unhandled rejection:', e.reason);
+});
+
 // 初始化
 async function init() {
-  await refreshMarketStatus();
-  await refreshQuotes();
-  await refreshAccount();
-  await refreshAccountSummary();
-  await refreshWatchlist();
-  await refreshFx();
-  await refreshAccounts();
+  try {
+    await refreshMarketStatus();
+    await refreshQuotes();
+    await refreshAccount();
+    await refreshAccountSummary();
+    await refreshWatchlist();
+    await refreshFx();
+    await refreshAccounts();
 
-  // 默认显示 Dashboard
-  renderDashboard();
-  renderStockList();
-  renderIndices();
-  resizeChartCanvas();
-  setupChartHover();
+    // 默认显示 Dashboard
+    switchView('dashboard');
+    await renderDashboard();
+    renderStockList();
+    renderIndices();
+    resizeChartCanvas();
+    setupChartHover();
 
-  if (store.quotesData.astocks.length) {
-    selectStock(store.quotesData.astocks[0].symbol);
+    if (store.quotesData.astocks.length) {
+      selectStock(store.quotesData.astocks[0].symbol);
+    }
+
+    loadAnalysis().then(() => renderDashboardStats());
+    bindEvents();
+    startTick();
+  } catch (err) {
+    console.error('Init failed:', err);
+    const fb = document.getElementById('system-feedback');
+    if (fb) fb.textContent = '初始化失败: ' + err.message;
   }
-
-  loadAnalysis().then(() => renderDashboardStats());
-  bindEvents();
-  startTick();
 }
 
 init();
