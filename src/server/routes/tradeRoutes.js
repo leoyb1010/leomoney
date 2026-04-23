@@ -21,7 +21,19 @@ function parseTradePayload(body) {
   const price = body.price == null || body.price === '' ? null : parsePositiveNumber(body.price);
   if (!symbol || !qty) return { ok: false, error: '缺少参数: symbol, qty' };
   if (body.price != null && body.price !== '' && !price) return { ok: false, error: 'price 必须大于 0' };
-  return { ok: true, symbol, qty, price, strategy: body.strategy };
+  return {
+    ok: true,
+    symbol,
+    qty,
+    price,
+    strategy: body.strategy,
+    source: body.source,
+    mode: body.mode || body.executionMode,
+    runId: body.runId,
+    decisionId: body.decisionId,
+    evidenceRefs: body.evidenceRefs,
+    riskApproved: body.riskApproved,
+  };
 }
 
 async function handleTrade(res, side, body) {
@@ -32,7 +44,16 @@ async function handleTrade(res, side, body) {
     const quote = await getStockQuote(parsed.symbol);
     if (!quote) return res.status(404).json({ success: false, error: '未找到该资产' });
     if (parsed.strategy) quote.strategy = parsed.strategy;
-    const result = side === 'buy' ? buy(quote, parsed.qty, parsed.price) : sell(quote, parsed.qty, parsed.price);
+    if (parsed.source) quote.source = parsed.source;
+    if (parsed.mode) quote.mode = parsed.mode;
+    if (parsed.runId) quote.runId = parsed.runId;
+    if (parsed.decisionId) quote.decisionId = parsed.decisionId;
+    if (Array.isArray(parsed.evidenceRefs)) quote.evidenceRefs = parsed.evidenceRefs;
+    if (typeof parsed.riskApproved === 'boolean') quote.riskApproved = parsed.riskApproved;
+
+    const result = side === 'buy'
+      ? await buy(quote, parsed.qty, parsed.price)
+      : await sell(quote, parsed.qty, parsed.price);
     return res.status(result.success ? 200 : 400).json(result);
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
