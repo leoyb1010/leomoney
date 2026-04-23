@@ -79,6 +79,9 @@
     <div class="sidebar-item" data-view="analysis" aria-label="复盘">
       <div class="sidebar-icon">🧠</div><div class="sidebar-label">复盘</div>
     </div>
+    <div class="sidebar-item" data-view="agent" aria-label="Agent">
+      <div class="sidebar-icon">🤖</div><div class="sidebar-label">Agent</div>
+    </div>
     <div class="sidebar-spacer"></div>
   </nav>
 
@@ -274,7 +277,14 @@
         </div>
         <div>
           <div class="form-group" style="margin-bottom:14px"><label class="form-label">委托价格</label><input type="number" class="form-input" id="quickPrice" data-testid="quick-price" step="0.01" placeholder="限价"></div>
-          <div class="form-group" style="margin-bottom:14px"><label class="form-label">委托数量</label><input type="number" class="form-input" id="quickQty" data-testid="quick-qty" step="100" min="100" placeholder="100的整数倍"></div>
+          <div class="form-group" style="margin-bottom:14px"><label class="form-label">委托数量</label><input type="number" class="form-input" id="quickQty" data-testid="quick-qty" step="100" min="100" placeholder="100的整数倍">
+            <div class="quantity-presets" style="margin-top:6px">
+              <button class="preset-btn" type="button" data-quick-qty="100">100</button>
+              <button class="preset-btn" type="button" data-quick-qty="500">500</button>
+              <button class="preset-btn" type="button" data-quick-qty="1000">1000</button>
+              <button class="preset-btn" type="button" id="quickQtyMaxBtn">全仓</button>
+            </div>
+          </div>
           <div style="display:flex;gap:10px">
             <button class="submit-btn buy-btn action-button buy" type="button" id="quickBuyBtn" data-testid="quick-buy" data-side="buy" aria-label="快捷买入下单" style="flex:1">买入下单</button>
             <button class="submit-btn sell-btn action-button sell" type="button" id="quickSellBtn" data-testid="quick-sell" data-side="sell" aria-label="快捷卖出下单" style="flex:1">卖出下单</button>
@@ -294,6 +304,18 @@
     <div class="view orders-view" id="view-orders" data-testid="view-orders" data-role="view" data-view="orders">
       <div class="orders-header">
         <span>📋 条件单管理</span>
+        <button class="dashboard-action-btn" type="button" id="quickCreateOrderBtn" style="font-size:.78rem">+ 快速创建</button>
+      </div>
+      <!-- 快速创建条件单（默认折叠） -->
+      <div id="quickOrderForm" style="display:none;padding:16px 24px;border-bottom:1px solid var(--border);background:var(--bg-card)">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+          <div class="form-group" style="flex:1;min-width:120px;margin-bottom:0"><label class="form-label" style="font-size:.78rem">股票代码</label><input type="text" class="form-input" id="qoSymbol" placeholder="如 600519" style="font-size:.88rem"></div>
+          <div class="form-group" style="min-width:100px;margin-bottom:0"><label class="form-label" style="font-size:.78rem">方向</label><select class="form-select" id="qoDir" style="font-size:.88rem"><option value="buy">买入</option><option value="sell">卖出</option></select></div>
+          <div class="form-group" style="min-width:80px;margin-bottom:0"><label class="form-label" style="font-size:.78rem">条件</label><select class="form-select" id="qoTriggerType" style="font-size:.88rem"><option value="gte">≥ 涨到位</option><option value="lte">≤ 跌到位</option></select></div>
+          <div class="form-group" style="min-width:100px;margin-bottom:0"><label class="form-label" style="font-size:.78rem">触发价</label><input type="number" class="form-input" id="qoTriggerPrice" placeholder="如 1700" step="0.01" style="font-size:.88rem"></div>
+          <div class="form-group" style="min-width:80px;margin-bottom:0"><label class="form-label" style="font-size:.78rem">数量</label><input type="number" class="form-input" id="qoQty" placeholder="100" step="100" style="font-size:.88rem"></div>
+          <button class="submit-btn order-btn" type="button" id="qoSubmitBtn" style="padding:8px 20px;font-size:.85rem">创建</button>
+        </div>
       </div>
       <div class="orders-stats-row" id="ordersStatsRow">
         <div class="order-stat">
@@ -350,6 +372,68 @@
       <div class="analysis-trade-list">
         <div class="chart-card-title" style="padding:16px 20px 8px">交易明细</div>
         <div id="analysisTradeList" data-testid="analysis-trade-list" data-role="analysis-trade-list"></div>
+      </div>
+    </div>
+
+    <!-- VIEW: Agent 控制台 -->
+    <div class="view agent-view" id="view-agent" data-testid="view-agent" data-role="view" data-view="agent">
+      <div class="agent-header">
+        <div>
+          <div class="agent-title">🤖 Agent 控制台</div>
+          <div class="agent-subtitle">智能交易助手 · 多级安全防护</div>
+        </div>
+        <div class="agent-header-actions">
+          <div class="agent-level-selector">
+            <button class="level-btn" data-level="1" title="只看不动手">L1 监控</button>
+            <button class="level-btn active" data-level="2" title="一键确认执行">L2 顾问</button>
+            <button class="level-btn" data-level="3" title="自动执行（需置信度≥阈值）">L3 代理</button>
+          </div>
+          <button class="agent-toggle-btn" id="agentToggleBtn" type="button">启动 Agent</button>
+          <button class="agent-refresh-btn" id="agentRefreshBtn" type="button">↻ 刷新</button>
+        </div>
+      </div>
+
+      <!-- 状态面板 -->
+      <div id="agentStatusPanel" class="agent-status-panel"></div>
+
+      <!-- 策略 + 手动分析 -->
+      <div class="agent-panels">
+        <div class="agent-left">
+          <div class="agent-section-title">🎯 策略选择</div>
+          <div id="agentStrategyList" class="agent-strategy-list"></div>
+
+          <div class="agent-section-title" style="margin-top:16px">🔍 手动分析</div>
+          <div class="agent-manual-scan">
+            <input type="text" class="form-input" id="agentManualSymbol" placeholder="输入代码，如 600519" style="flex:1">
+            <button class="submit-btn buy-btn" type="button" id="agentManualScanBtn" style="width:auto;padding:0 16px;font-size:.85rem">分析</button>
+          </div>
+        </div>
+        <div class="agent-right">
+          <div class="agent-section-title">📡 信号流</div>
+          <div id="agentSignalList" class="agent-signal-list"></div>
+        </div>
+      </div>
+
+      <!-- 方案 + 日志 -->
+      <div class="agent-panels">
+        <div class="agent-left">
+          <div class="agent-section-title">📋 待处理方案</div>
+          <div id="agentProposalList" class="agent-proposal-list"></div>
+        </div>
+        <div class="agent-right">
+          <div class="agent-section-title">📝 操作日志</div>
+          <div id="agentLogList" class="agent-log-list"></div>
+        </div>
+      </div>
+
+      <!-- 熔断器 + 风控 -->
+      <div class="agent-footer">
+        <div class="agent-section-title">🛡️ 安全控制</div>
+        <div class="agent-safety-row">
+          <button class="safety-btn" id="agentResetBreakerBtn" type="button">重置熔断器</button>
+          <button class="safety-btn" id="agentDailyReportBtn" type="button">今日报告</button>
+          <a class="safety-btn" href="/api/agent/daily-report" target="_blank" style="text-decoration:none;color:inherit">查看完整报告 ↗</a>
+        </div>
       </div>
     </div>
 

@@ -40,5 +40,14 @@ app.listen(PORT, () => {
   console.log(`\n🦁 Leomoney v${pkg.version} 已启动`);
   console.log(`   地址: http://localhost:${PORT}`);
   console.log(`   A股: ${status.a.status} | 港股: ${status.hk.status} | 美股: ${status.us.status} | 加密: ${status.crypto.status}`);
-  console.log(`   CLI:  node cli.js --help\n`);
+  console.log(`   CLI:  node cli.js --help`);
+
+  // 启动后台调度器（条件单自动触发 + 策略扫描）
+  const { startScheduler } = require('./lib/scheduler');
+  startScheduler();
+
+  // Agent 状态
+  const { isLLMReady } = require('./lib/agent/brain');
+  console.log(`   Agent: ${isLLMReady() ? '✅ LLM 已配置' : '⚠️  LLM 未配置（设置 LLM_API_KEY 启用）'}`);
+  console.log();
 });

@@ -44,6 +44,9 @@ function bindEvents() {
       if (view === 'analysis') {
         import('./features/analysis.js').then(m => m.loadAnalysis());
       }
+      if (view === 'agent') {
+        import('./features/agent.js').then(m => m.initAgentView());
+      }
       if (view === 'trade') {
         import('./features/quickTrade.js').then(m => m.initQuickTrade && m.initQuickTrade());
       }
@@ -230,6 +233,62 @@ function bindEvents() {
     });
   });
 
+  // 快速创建条件单（订单视图）
+  const quickCreateOrderBtn = document.getElementById('quickCreateOrderBtn');
+  if (quickCreateOrderBtn) {
+    quickCreateOrderBtn.addEventListener('click', () => {
+      const form = document.getElementById('quickOrderForm');
+      if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    });
+  }
+  const qoSubmitBtn = document.getElementById('qoSubmitBtn');
+  if (qoSubmitBtn) {
+    qoSubmitBtn.addEventListener('click', async () => {
+      const { apiPost } = await import('./features/api.js');
+      const { notify } = await import('./features/account.js');
+      const symbol = document.getElementById('qoSymbol')?.value?.trim().toUpperCase();
+      const dir = document.getElementById('qoDir')?.value;
+      const triggerType = document.getElementById('qoTriggerType')?.value;
+      const triggerPrice = parseFloat(document.getElementById('qoTriggerPrice')?.value);
+      const qty = parseFloat(document.getElementById('qoQty')?.value);
+      if (!symbol || !triggerPrice || !qty) { notify('请填写完整信息', 'error'); return; }
+      const result = await apiPost('/api/orders', { symbol, type: dir, triggerType, triggerPrice, qty });
+      if (result?.success) {
+        notify('条件单创建成功', 'success');
+        document.getElementById('qoSymbol').value = '';
+        document.getElementById('qoTriggerPrice').value = '';
+        document.getElementById('qoQty').value = '';
+        const { refreshAccount } = await import('./features/account.js');
+        await refreshAccount();
+        const { renderOrders } = await import('./features/dashboard.js');
+        renderOrders();
+      } else {
+        notify(result?.error || '创建失败', 'error');
+      }
+    });
+  }
+
+  // 快捷交易数量预设按钮
+  document.querySelectorAll('[data-quick-qty]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const qtyEl = document.getElementById('quickQty');
+      if (qtyEl) qtyEl.value = btn.dataset.quickQty;
+    });
+  });
+  const quickQtyMaxBtn = document.getElementById('quickQtyMaxBtn');
+  if (quickQtyMaxBtn) {
+    quickQtyMaxBtn.addEventListener('click', async () => {
+      const { apiGet } = await import('./features/api.js');
+      const price = parseFloat(document.getElementById('quickPrice')?.value);
+      if (!price) return;
+      const acc = await apiGet('/api/account');
+      if (acc?.balance) {
+        const qtyEl = document.getElementById('quickQty');
+        if (qtyEl) qtyEl.value = Math.floor(acc.balance / price / 100) * 100;
+      }
+    });
+  }
+
   // 重置账户
   const resetBtn = document.querySelector('.reset-btn');
   if (resetBtn) {
@@ -257,6 +316,81 @@ function bindEvents() {
       }
     });
   });
+
+  // Agent 等级切换
+  document.querySelectorAll('.level-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const level = parseInt(btn.dataset.level);
+      if (level >= 3) {
+        if (!confirm('⚠️ Level 3 代理者模式将自动执行交易！确认切换？')) return;
+      }
+      document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const { setAgentLevel } = await import('./features/agent.js');
+      await setAgentLevel(level);
+    });
+  });
+
+  // Agent 开关
+  const agentToggleBtn = document.getElementById('agentToggleBtn');
+  if (agentToggleBtn) {
+    agentToggleBtn.addEventListener('click', async () => {
+      const isActive = agentToggleBtn.classList.toggle('active');
+      agentToggleBtn.textContent = isActive ? '停止 Agent' : '启动 Agent';
+      const { toggleAgent } = await import('./features/agent.js');
+      await toggleAgent(isActive);
+    });
+  }
+
+  // Agent 刷新
+  const agentRefreshBtn = document.getElementById('agentRefreshBtn');
+  if (agentRefreshBtn) {
+    agentRefreshBtn.addEventListener('click', async () => {
+      const { refreshAgent } = await import('./features/agent.js');
+      await refreshAgent();
+    });
+  }
+
+  // Agent 手动分析
+  const agentManualScanBtn = document.getElementById('agentManualScanBtn');
+  if (agentManualScanBtn) {
+    agentManualScanBtn.addEventListener('click', async () => {
+      const symbol = document.getElementById('agentManualSymbol')?.value?.trim();
+      if (!symbol) return;
+      const { manualSignal } = await import('./features/agent.js');
+      await manualSignal(symbol.toUpperCase());
+    });
+  }
+  const agentManualSymbolInput = document.getElementById('agentManualSymbol');
+  if (agentManualSymbolInput) {
+    agentManualSymbolInput.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const symbol = agentManualSymbolInput.value?.trim();
+        if (!symbol) return;
+        const { manualSignal } = await import('./features/agent.js');
+        await manualSignal(symbol.toUpperCase());
+      }
+    });
+  }
+
+  // Agent 熔断器重置
+  const agentResetBreakerBtn = document.getElementById('agentResetBreakerBtn');
+  if (agentResetBreakerBtn) {
+    agentResetBreakerBtn.addEventListener('click', async () => {
+      if (!confirm('确认重置熔断器？这将恢复所有自动交易能力。')) return;
+      const { resetCircuitBreaker } = await import('./features/agent.js');
+      await resetCircuitBreaker();
+    });
+  }
+
+  // Agent 今日报告
+  const agentDailyReportBtn = document.getElementById('agentDailyReportBtn');
+  if (agentDailyReportBtn) {
+    agentDailyReportBtn.addEventListener('click', () => {
+      window.open('/api/agent/daily-report', '_blank');
+    });
+  }
 
   // K线周期
   document.querySelectorAll('.tf-btn').forEach(btn => {

@@ -15,23 +15,34 @@ export async function renderDashboard() {
     accNameEl.textContent = store.currentAccountName || '默认账户';
   }
 
+  // 确保数据就绪
+  if (!store.accountSummary) {
+    try {
+      const { refreshAccountSummary } = await import('./account.js');
+      await refreshAccountSummary();
+    } catch {}
+  }
+
   const summary = store.accountSummary || {};
   const acc = store.accountData || {};
   const totalAssets = summary.totalAssets ?? acc.balance ?? 0;
   const cash = summary.cash ?? acc.balance ?? 0;
   const marketValue = summary.holdingValue ?? summary.totalMarketValue ?? 0;
   const totalPnL = summary.totalUnrealizedPnL ?? summary.totalPnL ?? 0;
+  const todayPnL = summary.todayRealizedPnL ?? 0;
   const costBasis = totalAssets - totalPnL;
   const pnlPct = costBasis > 0 ? (totalPnL / costBasis * 100) : 0;
   const holdings = summary.holdingCount ?? Object.keys(acc.holdings || {}).length;
-  const pendingCount = (summary.pendingOrders || acc.pendingOrders || []).length;
+  const pendingOrders = summary.pendingOrders || acc.pendingOrders || [];
+  const pendingCount = pendingOrders.filter(o => o.status === 'pending').length;
+  const executedCount = pendingOrders.filter(o => o.status === 'executed').length;
 
   setKPI('dkpiTotalAssets', fmtMoney(totalAssets), '');
   setKPI('dkpiCash', fmtMoney(cash), totalAssets > 0 ? `${((cash / totalAssets) * 100).toFixed(1)}% of total` : '0.0% of total');
   setKPI('dkpiMarketValue', fmtMoney(marketValue), totalAssets > 0 ? `${((marketValue / totalAssets) * 100).toFixed(1)}% of total` : '0.0% of total');
-  const pnlColor = totalPnL >= 0 ? 'color:#ef4444' : 'color:#22c55e';
+  const pnlColor = totalPnL >= 0 ? 'color:#10b981' : 'color:#ef4444';
   setKPI('dkpiPnL', fmtMoney(totalPnL), `${totalPnL >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%`, pnlColor);
-  setKPI('dkpiHoldingCount', String(holdings), `Pending: ${pendingCount}`);
+  setKPI('dkpiHoldingCount', String(holdings), `待触发: ${pendingCount} · 已执行: ${executedCount}`);
 
   renderDashboardMarketList('astocks');
   renderDashboardWatchlist();
