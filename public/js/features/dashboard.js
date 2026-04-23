@@ -17,17 +17,18 @@ export async function renderDashboard() {
 
   const summary = store.accountSummary || {};
   const acc = store.accountData || {};
-  const totalAssets = summary.totalAssets || acc.balance || 0;
-  const cash = acc.balance || 0;
-  const marketValue = summary.totalMarketValue || 0;
-  const totalPnL = summary.totalPnL || 0;
-  const pnlPct = totalAssets > 0 ? (totalPnL / (totalAssets - totalPnL) * 100) : 0;
-  const holdings = Object.keys(acc.holdings || {}).length;
-  const pendingCount = (acc.pendingOrders || []).length;
+  const totalAssets = summary.totalAssets ?? acc.balance ?? 0;
+  const cash = summary.cash ?? acc.balance ?? 0;
+  const marketValue = summary.holdingValue ?? summary.totalMarketValue ?? 0;
+  const totalPnL = summary.totalUnrealizedPnL ?? summary.totalPnL ?? 0;
+  const costBasis = totalAssets - totalPnL;
+  const pnlPct = costBasis > 0 ? (totalPnL / costBasis * 100) : 0;
+  const holdings = summary.holdingCount ?? Object.keys(acc.holdings || {}).length;
+  const pendingCount = (summary.pendingOrders || acc.pendingOrders || []).length;
 
   setKPI('dkpiTotalAssets', fmtMoney(totalAssets), '');
-  setKPI('dkpiCash', fmtMoney(cash), `${((cash / totalAssets) * 100).toFixed(1)}% of total`);
-  setKPI('dkpiMarketValue', fmtMoney(marketValue), `${((marketValue / totalAssets) * 100).toFixed(1)}% of total`);
+  setKPI('dkpiCash', fmtMoney(cash), totalAssets > 0 ? `${((cash / totalAssets) * 100).toFixed(1)}% of total` : '0.0% of total');
+  setKPI('dkpiMarketValue', fmtMoney(marketValue), totalAssets > 0 ? `${((marketValue / totalAssets) * 100).toFixed(1)}% of total` : '0.0% of total');
   const pnlColor = totalPnL >= 0 ? 'color:#ef4444' : 'color:#22c55e';
   setKPI('dkpiPnL', fmtMoney(totalPnL), `${totalPnL >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%`, pnlColor);
   setKPI('dkpiHoldingCount', String(holdings), `Pending: ${pendingCount}`);
@@ -63,7 +64,7 @@ export function renderDashboardMarketList(cat) {
   }
   el.innerHTML = quotes.slice(0, 8).map(s => {
     const chg = s.change || 0;
-    const chgPct = s.changePct || 0;
+    const chgPct = s.changePercent || 0;
     const isUp = chg >= 0;
     return `<div class="dash-stock-item" data-symbol="${s.symbol}">
       <span class="dash-stock-cat">${CAT_LABELS[cat] || cat}</span>
@@ -150,7 +151,7 @@ export async function renderOrders(filter) {
 }
 
 function orderCardHTML(o) {
-  const label = o.type === 'gte' ? '≥' : '≤';
+  const label = o.triggerType === 'gte' ? '≥' : '≤';
   const triggered = o.status === 'executed';
   const failed = o.status === 'failed';
   const sc = failed ? '#ef4444' : triggered ? '#22c55e' : '#f59e0b';
@@ -198,7 +199,8 @@ document.addEventListener('click', async (e) => {
   const id = btn.dataset.id;
   if (!id) return;
   try {
-    await apiGet('/api/orders/' + encodeURIComponent(id), { method: 'DELETE' });
+    const { apiDelete } = await import('./api.js');
+    await apiDelete('/api/orders/' + encodeURIComponent(id));
     const acc = await apiGet('/api/account');
     if (acc) store.accountData = acc;
     renderOrders(currentOrderFilter);
