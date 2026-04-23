@@ -33,6 +33,13 @@ function normalizeOrderInput(order) {
       triggerPrice,
       qty,
       category: order.category || 'astocks',
+      source: order.source || 'manual',
+      mode: order.mode || order.executionMode || 'paper_execution',
+      runId: order.runId || null,
+      decisionId: order.decisionId || null,
+      strategyId: order.strategyId || null,
+      evidenceRefs: Array.isArray(order.evidenceRefs) ? order.evidenceRefs : [],
+      riskApproved: order.riskApproved !== false,
     }
   };
 }
@@ -157,8 +164,22 @@ async function checkPendingOrders(prices) {
 
         if (ok) {
           account.history.unshift({
-            type: order.type, symbol: order.symbol, name: order.name,
-            price: currentPrice, qty, total, time: new Date().toISOString(), category, unit: getUnit(category),
+            type: order.type,
+            symbol: order.symbol,
+            name: order.name,
+            price: currentPrice,
+            qty,
+            total,
+            time: new Date().toISOString(),
+            category,
+            unit: getUnit(category),
+            strategy: order.strategyId || undefined,
+            source: order.source || 'automation',
+            mode: order.mode || 'paper_execution',
+            runId: order.runId || null,
+            decisionId: order.decisionId || null,
+            evidenceRefs: Array.isArray(order.evidenceRefs) ? order.evidenceRefs : [],
+            riskApproved: order.riskApproved !== false,
           });
           account.pendingOrders[i].status = 'executed';
           account.pendingOrders[i].executedAt = new Date().toISOString();
@@ -171,7 +192,8 @@ async function checkPendingOrders(prices) {
         account.updatedAt = new Date().toISOString();
 
         executed.push({
-          accountId, accountName: account.accountName,
+          accountId,
+          accountName: account.accountName,
           ...account.pendingOrders[i],
           result: { success: ok, message: msg, balance: account.balance }
         });

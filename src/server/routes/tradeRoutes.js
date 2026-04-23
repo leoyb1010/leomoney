@@ -69,7 +69,26 @@ router.post('/trade/sell', async (req, res) => {
 });
 
 router.post('/orders', async (req, res) => {
-  const { symbol, name, side, action, orderType, type, triggerType, triggerPrice, qty, category } = req.body || {};
+  const {
+    symbol,
+    name,
+    side,
+    action,
+    orderType,
+    type,
+    triggerType,
+    triggerPrice,
+    qty,
+    category,
+    source,
+    mode,
+    executionMode,
+    runId,
+    decisionId,
+    strategyId,
+    evidenceRefs,
+    riskApproved,
+  } = req.body || {};
   const normalizedOrderType = (orderType || side || action || '').toLowerCase();
   const legacyTriggerType = ['gte', 'lte'].includes(String(type || '').toLowerCase()) ? String(type).toLowerCase() : '';
   const finalType = normalizedOrderType || (['buy', 'sell'].includes(String(type || '').toLowerCase()) ? String(type).toLowerCase() : '');
@@ -84,6 +103,13 @@ router.post('/orders', async (req, res) => {
     triggerPrice: finalTriggerPrice,
     qty,
     category,
+    source,
+    mode: mode || executionMode,
+    runId,
+    decisionId,
+    strategyId,
+    evidenceRefs,
+    riskApproved,
   });
   res.status(result.success ? 200 : 400).json(result);
 });
@@ -117,14 +143,16 @@ router.get('/watchlist', (req, res) => {
   res.json({ success: true, watchlist: getWatchlist() });
 });
 
-router.post('/watchlist', (req, res) => {
-  const { symbol, name, category, currency } = req.body;
+router.post('/watchlist', async (req, res) => {
+  const { symbol, name, category, currency } = req.body || {};
   if (!symbol) return res.status(400).json({ success: false, error: '缺少参数: symbol' });
-  res.json(addToWatchlist({ symbol, name, category, currency }));
+  const result = await addToWatchlist({ symbol, name, category, currency });
+  res.status(result.success ? 200 : 400).json(result);
 });
 
-router.delete('/watchlist/:symbol', (req, res) => {
-  res.json(removeFromWatchlist(req.params.symbol));
+router.delete('/watchlist/:symbol', async (req, res) => {
+  const result = await removeFromWatchlist(req.params.symbol);
+  res.status(result.success ? 200 : 400).json(result);
 });
 
 router.get('/account/summary', async (req, res) => {
