@@ -3,55 +3,76 @@
  */
 const express = require('express');
 const router = express.Router();
-const { getStockQuote } = require('../../../lib/quotes');
-const { getQuotes } = require('../../../lib/quotes');
+const { getStockQuote, getQuotes } = require('../../../lib/quotes');
 const { buy, sell } = require('../services/tradingService');
 const { createOrder, cancelOrder, getPendingOrders, getAllOrders, checkPendingOrders } = require('../services/orderService');
 const { getWatchlist, addToWatchlist, removeFromWatchlist } = require('../services/watchlistService');
 const { buildAccountSummary } = require('../services/summaryService');
 const { getAllRates } = require('../../../lib/fx');
 
-// 现货交易
-router.post('/trade/buy', (req, res) => {
-  const { symbol, qty, price, strategy } = req.body;
-  if (!symbol || !qty) return res.status(400).json({ success: false, error: '缺少参数: symbol, qty' });
-  getStockQuote(symbol).then(quote => {
-    if (!quote) return res.status(404).json({ success: false, error: '未找到该资产' });
-    if (strategy) quote.strategy = strategy;
-    const result = buy(quote, qty, price || null);
-    res.status(result.success ? 200 : 400).json(result);
-  }).catch(err => res.status(500).json({ success: false, error: err.message }));
-});
+function parsePositiveNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
 
-router.post('/trade/sell', (req, res) => {
-  const { symbol, qty, price, strategy } = req.body;
-  if (!symbol || !qty) return res.status(400).json({ success: false, error: '缺少参数: symbol, qty' });
-  getStockQuote(symbol).then(quote => {
-    if (!quote) return res.status(404).json({ success: false, error: '未找到该资产' });
-    if (strategy) quote.strategy = strategy;
-    const result = sell(quote, qty, price || null);
-    res.status(result.success ? 200 : 400).json(result);
-  }).catch(err => res.status(500).json({ success: false, error: err.message }));
-});
+function parseTradePayload(body) {
+  const symbol = typeof body.symbol === 'string' ? body.symbol.trim() : '';
+  const qty = parsePositiveNumber(body.qty);
+  const price = body.price == null || body.price === '' ? null : parsePositiveNumber(body.price);
+  if (!symbol || !qty) return { ok: false, error: '缺少参数: symbol, qty' };
+  if (body.price != null && body.price !== '' && !price) return { ok: false, error: 'price 必须大于 0' };
+  return { ok: true, symbol, qty, price, strategy: body.strategy };
+}
 
-// 条件单
-router.post('/orders', (req, res) => {
-  // 兼容旧版前端: type=gte/ete, price → triggerType, triggerPrice
-  const { symbol, name, type, triggerType, triggerPrice, qty } = req.body;
-  const finalTriggerType = triggerType || type; // 旧版用 type 作 triggerType
-  const finalTriggerPrice = triggerPrice || req.body.price;
-  if (!symbol || !finalTriggerType || finalTriggerPrice == null || !qty) {
-    return res.status(400).json({ success: false, error: '缺少参数: symbol, type, price, qty' });
+async function handleTrade(res, side, body) {
+  const parsed = parseTradePayload(body);
+  if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.error });
+
+  try {
+    const quote = await getStockQuote(parsed.symbol);
+    if (!quote) return res.status(404).json({ success: false, error: '未找到该资产' });
+    if (parsed.strategy) quote.strategy = parsed.strategy;
+    const result = side === 'buy' ? buy(quote, parsed.qty, parsed.price) : sell(quote, parsed.qty, parsed.price);
+    return res.status(result.success ? 200 : 400).json(result);
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
   }
-  res.json(createOrder({ symbol, name, type: finalTriggerType, triggerType: finalTriggerType, triggerPrice: finalTriggerPrice, qty }));
+}
+
+router.post('/trade/buy', async (req, res) => {
+  await handleTrade(res, 'buy', req.body || {});
+});
+
+router.post('/trade/sell', async (req, res) => {
+  await handleTrade(res, 'sell', req.body || {});
+});
+
+router.post('/orders', async (req, res) => {
+  const { symbol, name, side, action, orderType, type, triggerType, triggerPrice, qty, category } = req.body || {};
+  const normalizedOrderType = (orderType || side || action || '').toLowerCase();
+  const legacyTriggerType = ['gte', 'lte'].includes(String(type || '').toLowerCase()) ? String(type).toLowerCase() : '';
+  const finalType = normalizedOrderType || (['buy', 'sell'].includes(String(type || '').toLowerCase()) ? String(type).toLowerCase() : '');
+  const finalTriggerType = String(triggerType || legacyTriggerType || '').toLowerCase();
+  const finalTriggerPrice = triggerPrice ?? req.body?.price;
+
+  const result = await createOrder({
+    symbol,
+    name,
+    type: finalType,
+    triggerType: finalTriggerType,
+    triggerPrice: finalTriggerPrice,
+    qty,
+    category,
+  });
+  res.status(result.success ? 200 : 400).json(result);
 });
 
 router.get('/orders', (req, res) => {
   res.json({ success: true, orders: getAllOrders() });
 });
 
-router.delete('/orders/:id', (req, res) => {
-  const result = cancelOrder(req.params.id);
+router.delete('/orders/:id', async (req, res) => {
+  const result = await cancelOrder(req.params.id);
   res.status(result.success ? 200 : 400).json(result);
 });
 
@@ -60,16 +81,17 @@ router.post('/orders/check', async (req, res) => {
     const quotes = await getQuotes();
     const prices = {};
     ['astocks', 'hkstocks', 'usstocks', 'metals', 'crypto'].forEach(cat => {
-      (quotes[cat] || []).forEach(s => { prices[s.symbol] = s.price; });
+      (quotes[cat] || []).forEach(s => {
+        prices[s.symbol] = s.price;
+      });
     });
-    const executed = checkPendingOrders(prices);
+    const executed = await checkPendingOrders(prices);
     res.json({ success: true, executed, remaining: getPendingOrders().length });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// 自选
 router.get('/watchlist', (req, res) => {
   res.json({ success: true, watchlist: getWatchlist() });
 });
@@ -84,7 +106,6 @@ router.delete('/watchlist/:symbol', (req, res) => {
   res.json(removeFromWatchlist(req.params.symbol));
 });
 
-// 汇总
 router.get('/account/summary', async (req, res) => {
   try {
     const summary = await buildAccountSummary(getQuotes, getStockQuote, getAllRates);
@@ -94,7 +115,6 @@ router.get('/account/summary', async (req, res) => {
   }
 });
 
-// 汇率
 router.get('/fx', (req, res) => {
   res.json({ success: true, baseCurrency: 'CNY', rates: getAllRates() });
 });
