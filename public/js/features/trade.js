@@ -113,13 +113,17 @@ export function setQtyMax() {
   if (!qtyInput) return;
   if (store.tradeType === 'buy') {
     const priceInCNY = toCNY(store.selectedStock.price, store.selectedStock.currency, store.fxRates);
+    const cash = store.accountData.cash || {};
+    const available = Number(cash.available ?? store.accountData.balance ?? 0);
     let maxQty = rules.multiple
-      ? Math.floor(store.accountData.balance / priceInCNY / rules.step) * rules.step
-      : Math.floor(store.accountData.balance / priceInCNY / rules.step);
+      ? Math.floor(available / priceInCNY / rules.step) * rules.step
+      : Math.floor(available / priceInCNY / rules.step);
     qtyInput.value = Math.max(0, maxQty);
   } else {
-    const h = store.accountData.holdings[store.selectedStock.symbol];
-    qtyInput.value = h ? h.qty : 0;
+    const positions = store.accountData.positions || store.accountData.holdings || {};
+    const h = positions[store.selectedStock.symbol];
+    const sellable = Number(h?.sellableQty ?? h?.qty ?? 0);
+    qtyInput.value = sellable;
   }
   calcTotal();
 }
@@ -160,13 +164,14 @@ export function calcTotal() {
       const totalCNYForCheck = toCNY(price * qty, cur, store.fxRates);
       if (store.tradeType === 'buy') {
         const needCash = toCNY(reserve, cur, store.fxRates);
-        if (needCash > cash.available) validationEl.textContent = `资金不足，需冻结 ${formatMoney(needCash)}，可用 ${formatMoney(cash.available)}`;
+        const availNum = Number(cash.available);
+        if (needCash > availNum) validationEl.textContent = `资金不足，需冻结 ${formatMoney(needCash)}，可用 ${formatMoney(availNum)}`;
         else validationEl.textContent = `✓ 可下单，将冻结 ${formatMoney(needCash)}`;
-        validationEl.className = needCash > cash.available ? 'trade-validation error' : 'trade-validation success';
+        validationEl.className = needCash > availNum ? 'trade-validation error' : 'trade-validation success';
       } else {
         const pos = positions[store.selectedStock?.symbol];
-        const sellable = pos?.sellableQty !== undefined ? pos.sellableQty : pos?.qty;
-        if (pos && qty > sellable) validationEl.textContent = `可卖不足，可卖 ${sellable || 0} ${rules.unit}`;
+        const sellable = Number(pos?.sellableQty ?? pos?.qty ?? 0);
+        if (pos && qty > sellable) validationEl.textContent = `可卖不足，可卖 ${sellable} ${rules.unit}`;
         else validationEl.textContent = `✓ 可卖出 ${qty} ${rules.unit}`;
         validationEl.className = (pos && qty > sellable) ? 'trade-validation error' : 'trade-validation success';
       }
@@ -181,9 +186,11 @@ export function calcTotal() {
     const rules2 = getCategoryRules(store.selectedStock.category);
     if (store.tradeType === 'buy') {
       const priceInCNY = toCNY(store.selectedStock.price, store.selectedStock.currency, store.fxRates);
+      const cashData = store.accountData.cash || {};
+      const available = Number(cashData.available ?? store.accountData.balance ?? 0);
       let maxQty = rules2.multiple
-        ? Math.floor(store.accountData.balance / priceInCNY / rules2.step) * rules2.step
-        : Math.floor(store.accountData.balance / priceInCNY / rules2.step);
+        ? Math.floor(available / priceInCNY / rules2.step) * rules2.step
+        : Math.floor(available / priceInCNY / rules2.step);
       hintEl.textContent = `可买 ${Math.max(0, maxQty)} ${rules2.unit}`;
     } else {
       const pos = store.accountData.positions?.[store.selectedStock?.symbol] || store.accountData.holdings?.[store.selectedStock?.symbol];
@@ -334,13 +341,16 @@ export function updateCurrentSymbolPanel() {
 export function updateCurrentSymbolHolding() {
   const el = document.getElementById('csHolding');
   if (!el || !store.selectedStock) return;
-  const h = store.accountData.holdings[store.selectedStock.symbol];
+  const positions = store.accountData.positions || store.accountData.holdings || {};
+  const h = positions[store.selectedStock.symbol];
   const rules = getCategoryRules(store.selectedStock.category);
   if (h) {
-    const pnl = toCNY((store.selectedStock.price - h.avgCost) * h.qty, store.selectedStock.currency, store.fxRates);
+    const qty = Number(h.totalQty ?? h.qty ?? 0);
+    const avgCost = Number(h.avgCost ?? 0);
+    const pnl = toCNY((store.selectedStock.price - avgCost) * qty, store.selectedStock.currency, store.fxRates);
     const isUp = pnl >= 0;
     el.style.display = 'block';
-    el.innerHTML = `持有 ${h.qty}${rules.unit} · 成本 ${h.avgCost.toFixed(2)} · 浮盈 ${isUp ? '+' : ''}${pnl.toFixed(2)}（${isUp ? '+' : ''}${((store.selectedStock.price - h.avgCost) / h.avgCost * 100).toFixed(2)}%）`;
+    el.innerHTML = `持有 ${qty}${rules.unit} · 成本 ${avgCost.toFixed(2)} · 浮盈 ${isUp ? '+' : ''}${pnl.toFixed(2)}（${isUp ? '+' : ''}${((store.selectedStock.price - avgCost) / avgCost * 100).toFixed(2)}%）`;
     el.style.color = isUp ? 'var(--green)' : 'var(--red)';
   } else {
     el.style.display = 'none';

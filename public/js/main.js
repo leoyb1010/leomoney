@@ -282,9 +282,10 @@ function bindEvents() {
       const price = parseFloat(document.getElementById('quickPrice')?.value);
       if (!price) return;
       const acc = await apiGet('/api/account');
-      if (acc?.balance) {
+      const available = Number(acc?.cash?.available ?? acc?.balance ?? 0);
+      if (available > 0) {
         const qtyEl = document.getElementById('quickQty');
-        if (qtyEl) qtyEl.value = Math.floor(acc.balance / price / 100) * 100;
+        if (qtyEl) qtyEl.value = Math.floor(available / price / 100) * 100;
       }
     });
   }

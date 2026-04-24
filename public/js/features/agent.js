@@ -182,8 +182,8 @@ async function renderProposals() {
             <span class="proposal-status" style="color:${statusColors[p.status]}">${statusNames[p.status]}</span>
           </div>
           <div class="proposal-body">
-            <div class="proposal-detail">价格: ¥${p.price?.toFixed(2)} · 数量: ${p.qty} · 金额: ¥${(p.totalAmount || 0).toFixed(0)}</div>
-            <div class="proposal-detail">置信度: ${(p.confidence * 100).toFixed(0)}% · 策略: ${p.strategyName}</div>
+            <div class="proposal-detail">价格: ¥${Number(p.price || 0).toFixed(2)} · 数量: ${p.qty} · 金额: ¥${Number(p.totalAmount || 0).toFixed(0)}</div>
+            <div class="proposal-detail">置信度: ${(Number(p.confidence || 0) * 100).toFixed(0)}% · 策略: ${p.strategyName}</div>
             ${p.reason ? `<div class="proposal-reason">原因: ${p.reason}</div>` : ''}
             ${p.warnings?.length ? `<div class="proposal-warnings">${p.warnings.map(w => '⚠️ ' + w).join('；')}</div>` : ''}
             ${p.rejectionReason ? `<div class="proposal-rejection">❌ ${p.rejectionReason}</div>` : ''}

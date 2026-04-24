@@ -44,7 +44,7 @@ export function renderAccountList() {
       <span class="account-dot" style="background:${a.color || '#3b82f6'}"></span>
       <div class="account-item-info">
         <div class="account-item-name">${a.accountName}</div>
-        <div class="account-item-meta">资金 ${formatMoney(a.balance)}</div>
+        <div class="account-item-meta">资金 ${formatMoney(a.cashAvailable ?? a.balance ?? 0)}</div>
       </div>
       ${a.accountId !== store.currentAccountId ? `
         <div class="account-item-actions">

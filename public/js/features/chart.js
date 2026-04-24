@@ -61,7 +61,7 @@ export function updateChartHeader() {
   if (statPrev) statPrev.textContent = formatPrice(s.prevClose);
 }
 
-function formatPrice(p) { return p != null ? p.toFixed(2) : '--'; }
+function formatPrice(p) { return p != null ? Number(p).toFixed(2) : '--'; }
 
 function updateIndexChartHeader() {
   if (!store.selectedIndex) return;

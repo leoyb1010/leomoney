@@ -2,14 +2,14 @@
  * Leomoney 格式化工具
  */
 
-export function formatPrice(p) { return p != null ? p.toFixed(2) : '--'; }
-export function formatMoney(m) { return '¥' + m.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
-export function formatQty(q) { return q.toLocaleString(); }
+export function formatPrice(p) { return p != null ? Number(p).toFixed(2) : '--'; }
+export function formatMoney(m) { const n = Number(m); return isNaN(n) ? '¥0.00' : '¥' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+export function formatQty(q) { return Number(q).toLocaleString(); }
 
 // 别名（供 dashboard.js 等模块使用）
 export const fmtMoney = formatMoney;
 export const fmtQty = formatQty;
-export function fmtPct(p) { return p != null ? (p >= 0 ? '+' : '') + p.toFixed(2) + '%' : '--'; }
+export function fmtPct(p) { const n = Number(p); return p != null ? (n >= 0 ? '+' : '') + n.toFixed(2) + '%' : '--'; }
 
 export function toCNY(amount, currency, fxRates) {
   if (currency === 'CNY' || !currency) return amount;

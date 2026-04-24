@@ -25,14 +25,15 @@ export async function renderDashboard() {
 
   const summary = store.accountSummary || {};
   const acc = store.accountData || {};
-  const totalAssets = summary.totalAssets ?? acc.balance ?? 0;
-  const cash = summary.cash ?? acc.balance ?? 0;
-  const marketValue = summary.holdingValue ?? summary.totalMarketValue ?? 0;
-  const totalPnL = summary.totalUnrealizedPnL ?? summary.totalPnL ?? 0;
-  const todayPnL = summary.todayRealizedPnL ?? 0;
+  const totalAssets = Number(summary.totalAssets ?? acc.balance ?? 0);
+  const cash = summary.cash && typeof summary.cash === 'object' ? Number(summary.cash.available ?? 0) : Number(summary.cash ?? acc.balance ?? 0);
+  const cashFrozen = summary.cash && typeof summary.cash === 'object' ? Number(summary.cash.frozen ?? 0) : 0;
+  const marketValue = Number(summary.holdingValue ?? summary.totalMarketValue ?? 0);
+  const totalPnL = Number(summary.totalUnrealizedPnL ?? summary.totalPnL ?? 0);
+  const todayPnL = Number(summary.todayRealizedPnL ?? 0);
   const costBasis = totalAssets - totalPnL;
   const pnlPct = costBasis > 0 ? (totalPnL / costBasis * 100) : 0;
-  const holdings = summary.holdingCount ?? Object.keys(acc.holdings || {}).length;
+  const holdings = summary.holdingCount ?? Object.keys(acc.positions || acc.holdings || {}).length;
   const pendingOrders = summary.pendingOrders || acc.pendingOrders || [];
   const pendingCount = pendingOrders.filter(o => o.status === 'pending').length;
   const executedCount = pendingOrders.filter(o => o.status === 'executed').length;

@@ -29,7 +29,7 @@ export function renderHistoryView() {
     const dirText = h.type === 'buy' ? '买入' : '卖出';
     return `<div class="history-item" data-testid="history-item" data-role="history-item" data-side="${h.type}" data-symbol="${h.symbol}">
       <span class="history-type ${h.type}">${dirText}</span>
-      <span class="history-detail">${h.name} ${formatQty(h.qty)}${unit} @ ${h.price.toFixed(2)}</span>
+      <span class="history-detail">${h.name} ${formatQty(h.qty)}${unit} @ ${Number(h.price).toFixed(2)}</span>
       <div class="history-amount"><div class="history-amount-value">${formatMoney(h.total)}</div><div class="history-time">${timeStr}</div></div>
     </div>`;
   }).join('');
