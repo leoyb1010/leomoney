@@ -1,9 +1,11 @@
 /**
- * Leomoney 账户服务层
- * 账户 CRUD、切换、重置
+ * Leomoney 账户服务层 v2
+ * 支持新 cash/positions 结构 + 旧版兼容
  */
 
 const { loadState, withStateTransaction, DEFAULT_BALANCE } = require('../repositories/stateRepository');
+const { migrateAccountIfNeeded } = require('../domain/ledger');
+const { toMoney } = require('../domain/money');
 const crypto = require('crypto');
 
 function isActiveAccount(account) {
@@ -28,16 +30,21 @@ function getCurrentOrFirstActiveAccount(state) {
 
 function getFallbackAccount() {
   return {
-    balance: DEFAULT_BALANCE, holdings: {}, history: [], pendingOrders: [], watchlist: [],
+    cash: { available: toMoney(DEFAULT_BALANCE), frozen: toMoney(0), total: toMoney(DEFAULT_BALANCE) },
+    positions: {}, history: [], pendingOrders: [], watchlist: [],
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), accountId: 'unknown'
   };
 }
 
+/**
+ * 获取当前账户 — 返回已迁移的结构
+ */
 function getAccount() {
   const state = loadState();
   const selected = getCurrentOrFirstActiveAccount(state);
   if (!selected) return getFallbackAccount();
   const [accountId, account] = selected;
+  migrateAccountIfNeeded(account);
   return { ...account, accountId };
 }
 
@@ -45,26 +52,37 @@ function getAccountById(accountId) {
   const state = loadState();
   const account = state.accounts[accountId];
   if (!isActiveAccount(account)) return null;
+  migrateAccountIfNeeded(account);
   return { ...account, accountId };
 }
 
 function getAccounts() {
   const state = loadState();
-  return getActiveAccountEntries(state).map(([id, acc]) => ({
-    accountId: id, accountName: acc.accountName, avatar: acc.avatar, color: acc.color,
-    balance: acc.balance, holdingsCount: Object.keys(acc.holdings || {}).length,
-    historyCount: (acc.history || []).length, watchlistCount: (acc.watchlist || []).length,
-    createdAt: acc.createdAt, updatedAt: acc.updatedAt, status: acc.status
-  }));
+  return getActiveAccountEntries(state).map(([id, acc]) => {
+    migrateAccountIfNeeded(acc);
+    return {
+      accountId: id, accountName: acc.accountName, avatar: acc.avatar, color: acc.color,
+      balance: acc.cash?.total || acc.balance || 0,
+      cashAvailable: acc.cash?.available || 0,
+      cashFrozen: acc.cash?.frozen || 0,
+      holdingsCount: Object.keys(acc.positions || acc.holdings || {}).length,
+      historyCount: (acc.history || []).length, watchlistCount: (acc.watchlist || []).length,
+      createdAt: acc.createdAt, updatedAt: acc.updatedAt, status: acc.status
+    };
+  });
 }
 
 async function createAccount(accountName = '新账户', initialBalance = DEFAULT_BALANCE, color = '#3b82f6') {
   return withStateTransaction((state) => {
     const accountId = 'acc_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
     const now = new Date().toISOString();
+    const balance = toMoney(Number(initialBalance) || DEFAULT_BALANCE);
     const newAccount = {
       accountId, accountName, avatar: null, color,
-      balance: Number(initialBalance) || DEFAULT_BALANCE, holdings: {}, history: [], pendingOrders: [], watchlist: [],
+      cash: { available: balance, frozen: toMoney(0), total: balance },
+      positions: {},
+      history: [], pendingOrders: [], watchlist: [],
+      ledgerLog: [],
       createdAt: now, updatedAt: now, status: 'active'
     };
     state.accounts[accountId] = newAccount;
@@ -113,9 +131,15 @@ async function resetCurrentAccount() {
     if (!selected) return { success: false, error: '当前账户不存在' };
     const [accountId] = selected;
     const now = new Date().toISOString();
+    const balance = toMoney(DEFAULT_BALANCE);
     state.accounts[accountId] = {
       ...state.accounts[accountId],
-      balance: DEFAULT_BALANCE, holdings: {}, history: [], pendingOrders: [], watchlist: [], updatedAt: now
+      balance: undefined, // 移除旧字段
+      holdings: undefined,
+      cash: { available: balance, frozen: toMoney(0), total: balance },
+      positions: {},
+      history: [], pendingOrders: [], watchlist: [], ledgerLog: [],
+      updatedAt: now
     };
     return { success: true, accountId, message: '账户已重置' };
   });
