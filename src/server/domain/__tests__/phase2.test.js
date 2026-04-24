@@ -3,92 +3,66 @@
  * 覆盖：observationBuilder / schema 解析 / audit / 风控闭环
  */
 
+const { describe, test } = require('node:test');
+const assert = require('node:assert/strict');
 const { parseAgentAction, makeHoldAction } = require('../../../../lib/agent/schema');
 
-function testSchemaValid() {
-  console.log('--- testSchemaValid ---');
-  const raw = JSON.stringify({ action: 'BUY', symbol: '600519', qty: 100, confidence: 0.85, thesis: '看好', riskNotes: [] });
-  const r = parseAgentAction(raw);
-  console.assert(r.success, `should succeed: ${r.error}`);
-  console.assert(r.action.action === 'BUY', 'action should be BUY');
-  console.assert(r.action.confidence === 0.85, 'confidence should be 0.85');
-  console.log('  ✅ schema valid passed');
-}
+describe('Phase 2: Schema 解析', () => {
+  test('有效 JSON 解析', () => {
+    const raw = JSON.stringify({ action: 'BUY', symbol: '600519', qty: 100, confidence: 0.85, thesis: '看好', riskNotes: [] });
+    const r = parseAgentAction(raw);
+    assert.ok(r.success, `should succeed: ${r.error}`);
+    assert.strictEqual(r.action.action, 'BUY', 'action should be BUY');
+    assert.strictEqual(r.action.confidence, 0.85, 'confidence should be 0.85');
+  });
 
-function testSchemaInvalidJSON() {
-  console.log('--- testSchemaInvalidJSON ---');
-  const r = parseAgentAction('not json at all');
-  console.assert(!r.success, 'should fail');
-  console.assert(r.action.action === 'HOLD', 'should downgrade to HOLD');
-  console.assert(r.error.includes('JSON'), `error should mention JSON: ${r.error}`);
-  console.log('  ✅ schema invalid JSON passed');
-}
+  test('无效 JSON 降级 HOLD', () => {
+    const r = parseAgentAction('not json at all');
+    assert.ok(!r.success, 'should fail');
+    assert.strictEqual(r.action.action, 'HOLD', 'should downgrade to HOLD');
+    assert.ok(r.error.includes('JSON'), `error should mention JSON: ${r.error}`);
+  });
 
-function testSchemaIllegalAction() {
-  console.log('--- testSchemaIllegalAction ---');
-  const raw = JSON.stringify({ action: 'HODL', symbol: '600519', qty: 100, confidence: 0.9 });
-  const r = parseAgentAction(raw);
-  console.assert(!r.success, 'should fail');
-  console.assert(r.action.action === 'HOLD', 'should downgrade to HOLD');
-  console.log('  ✅ schema illegal action passed');
-}
+  test('非法动作降级 HOLD', () => {
+    const raw = JSON.stringify({ action: 'HODL', symbol: '600519', qty: 100, confidence: 0.9 });
+    const r = parseAgentAction(raw);
+    assert.ok(!r.success, 'should fail');
+    assert.strictEqual(r.action.action, 'HOLD', 'should downgrade to HOLD');
+  });
 
-function testSchemaConfidenceOutOfRange() {
-  console.log('--- testSchemaConfidenceOutOfRange ---');
-  const raw = JSON.stringify({ action: 'BUY', symbol: '600519', qty: 100, confidence: 1.5 });
-  const r = parseAgentAction(raw);
-  console.assert(!r.success, 'should fail');
-  console.assert(r.action.action === 'HOLD', 'should downgrade to HOLD');
-  console.log('  ✅ schema confidence out of range passed');
-}
+  test('置信度超范围降级 HOLD', () => {
+    // confidence=150 → /100=1.5 → 仍 >1 → 非法
+    const raw = JSON.stringify({ action: 'BUY', symbol: '600519', qty: 100, confidence: 150 });
+    const r = parseAgentAction(raw);
+    assert.ok(!r.success, 'should fail');
+    assert.strictEqual(r.action.action, 'HOLD', 'should downgrade to HOLD');
+  });
 
-function testSchemaCodeBlock() {
-  console.log('--- testSchemaCodeBlock ---');
-  const raw = '```json\n{"action":"SELL","symbol":"AAPL","qty":10,"confidence":0.75,"thesis":"test"}\n```';
-  const r = parseAgentAction(raw);
-  console.assert(r.success, `should succeed: ${r.error}`);
-  console.assert(r.action.action === 'SELL', 'action should be SELL');
-  console.log('  ✅ schema code block passed');
-}
+  test('代码块 JSON 解析', () => {
+    const raw = '```json\n{"action":"SELL","symbol":"AAPL","qty":10,"confidence":0.75,"thesis":"test"}\n```';
+    const r = parseAgentAction(raw);
+    assert.ok(r.success, `should succeed: ${r.error}`);
+    assert.strictEqual(r.action.action, 'SELL', 'action should be SELL');
+  });
 
-function testSchemaMixedText() {
-  console.log('--- testSchemaMixedText ---');
-  const raw = '分析如下：我认为应该买入。\n```json\n{"action":"BUY","symbol":"000001","qty":500,"confidence":0.8,"thesis":"看好"}\n```\n以上是我的建议。';
-  const r = parseAgentAction(raw);
-  console.assert(r.success, `should succeed: ${r.error}`);
-  console.assert(r.action.action === 'BUY', 'action should be BUY');
-  console.log('  ✅ schema mixed text passed');
-}
+  test('混合文本中 JSON 解析', () => {
+    const raw = '分析如下：我认为应该买入。\n```json\n{"action":"BUY","symbol":"000001","qty":500,"confidence":0.8,"thesis":"看好"}\n```\n以上是我的建议。';
+    const r = parseAgentAction(raw);
+    assert.ok(r.success, `should succeed: ${r.error}`);
+    assert.strictEqual(r.action.action, 'BUY', 'action should be BUY');
+  });
 
-function testSchemaMissingSymbolForBuy() {
-  console.log('--- testSchemaMissingSymbolForBuy ---');
-  const raw = JSON.stringify({ action: 'BUY', qty: 100, confidence: 0.9 });
-  const r = parseAgentAction(raw);
-  console.assert(!r.success, 'should fail');
-  console.assert(r.error.includes('symbol'), 'error should mention symbol');
-  console.log('  ✅ schema missing symbol passed');
-}
+  test('BUY 缺少 symbol', () => {
+    const raw = JSON.stringify({ action: 'BUY', qty: 100, confidence: 0.9 });
+    const r = parseAgentAction(raw);
+    assert.ok(!r.success, 'should fail');
+    assert.ok(r.error.includes('symbol'), 'error should mention symbol');
+  });
 
-function testMakeHoldAction() {
-  console.log('--- testMakeHoldAction ---');
-  const a = makeHoldAction('test reason');
-  console.assert(a.action === 'HOLD', 'should be HOLD');
-  console.assert(a.confidence === 0, 'confidence should be 0');
-  console.assert(a.thesis.includes('test reason'), 'thesis should contain reason');
-  console.log('  ✅ makeHoldAction passed');
-}
-
-function runAll() {
-  console.log('\n🧪 Phase 2 测试开始\n');
-  testSchemaValid();
-  testSchemaInvalidJSON();
-  testSchemaIllegalAction();
-  testSchemaConfidenceOutOfRange();
-  testSchemaCodeBlock();
-  testSchemaMixedText();
-  testSchemaMissingSymbolForBuy();
-  testMakeHoldAction();
-  console.log('\n✅ Phase 2 全部测试通过\n');
-}
-
-runAll();
+  test('makeHoldAction', () => {
+    const a = makeHoldAction('test reason');
+    assert.strictEqual(a.action, 'HOLD', 'should be HOLD');
+    assert.strictEqual(a.confidence, 0, 'confidence should be 0');
+    assert.ok(a.thesis.includes('test reason'), 'thesis should contain reason');
+  });
+});

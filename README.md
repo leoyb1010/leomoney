@@ -204,15 +204,15 @@ leomoney/
 │   ├── trading.js            # 交易引擎（兼容层，逐步迁移到 services）
 │   ├── market.js             # 市场状态检测
 │   ├── fx.js                 # 汇率层
-│   ├── scheduler.js          # 后台调度器 v2（条件单+信号+策略+熔断）
+│   ├── scheduler.js          # 后台调度器 v2（条件单+信号+策略+熔断）+ 多账户隔离
 │   └── agent/
 │       ├── brain.js          # LLM 多 Provider 调用（DeepSeek/Qwen/OpenAI/Ollama）
 │       ├── eyes.js           # 信息采集（东财新闻+通用搜索）
-│       ├── executor.js       # 决策执行（风控门控+自动执行+止损挂单）
-│       ├── circuitBreaker.js # 熔断器（三态状态机+降级+事件通知）
-│       ├── riskManager.js    # 风控引擎（仓位/亏损/时段+止损止盈）
+│       ├── executor.js       # 决策执行（只读分析+风控门控+止损挂单）
+│       ├── circuitBreaker.js # 熔断器（三态状态机+降级+多账户隔离）
+│       ├── riskManager.js    # 风控引擎（仓位/亏损/时段+止损止盈+多账户隔离）
 │       ├── promptTemplates.js# 策略模板（5 预设+自定义 Prompt）
-│       └── signalEngine.js   # 信号引擎（采集→LLM→信号→方案→执行）
+│       └── signalEngine.js   # 信号引擎（采集→LLM→信号→方案→执行+多账户隔离）
 ├── src/
 │   ├── server/
 │   │   ├── routes/           # 路由层（market/account/trade/analysis+agent）
@@ -243,6 +243,26 @@ leomoney/
 ---
 
 ## Changelog
+
+### v1.9.0 — 2026-04-24
+
+**🔒 上线前修复 — 安全/可靠性/架构全面加固**
+
+#### P0 安全修复
+- **测试基线**：5 个测试文件 60+ 断言从 `console.assert` → `node:test` + `node:assert/strict`，失败设非零退出码
+- **TLS 安全**：3 处硬编码 `rejectUnauthorized: false` → 环境变量 `TLS_REJECT_UNAUTHORIZED` 控制，默认 `true`
+
+#### P1 可靠性修复
+- **Analyze 只读语义**：`analyzeSingle()` 不再执行交易，只返回分析结果
+- **熔断器真实 PnL**：`breaker.recordTrade()` 注入真实 `pnl`/`pnlPct`，单笔/日亏损保护生效
+- **日亏损逻辑**：`dailyLossPct` 只累计亏损，盈利不再抵消
+- **风控计数**：`riskManager.recordTrade()` 成功+失败都计数
+- **SELL 方案数量**：卖出方案基于持仓 `sellableQty`，不再用 `cash.available`
+
+#### P2 架构升级
+- **多账户隔离**：5 个全局单例 → `Map<accountId, instance>` 隔离，Proxy 向后兼容
+- **Scheduler 监听器去重**：具名函数 + `.off()` 移除，防止重启累积
+- 新增环境变量：`TLS_REJECT_UNAUTHORIZED`（默认 true）
 
 ### v1.8.0 — 2026-04-24
 
@@ -316,9 +336,10 @@ leomoney/
 
 - `LLM_PROVIDER` — 默认 deepseek，可选 qwen/openai/local
 - `LLM_API_KEY` — LLM API 密钥（**必须**）
-- `LLM_MODEL` — 覆盖默认模型
-- `SEARCH_API_URL` — 搜索引擎 API（可选，增强信息采集）
+- `LLM_MODEL` — 覆盖默认模型（如 deepseek-v4-flash）
+- `SEARCH_API_URL` — 搜索引擎 API（可选，tavily 或 URL）
 - `SEARCH_API_KEY` — 搜索引擎密钥（可选）
+- `TLS_REJECT_UNAUTHORIZED` — TLS 证书校验（默认 true，设 false 仅用于开发）
 
 ### v1.6.1 — 2026-04-23
 
