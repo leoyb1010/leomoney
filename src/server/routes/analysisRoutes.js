@@ -256,7 +256,7 @@ router.get('/agent/daily-report', (req, res) => {
     res.json({
       success: true,
       date: today,
-      account: { balance: account?.balance, holdings: Object.keys(account?.holdings || {}).length },
+      account: { cash: account?.cash, positionCount: Object.keys(account?.positions || account?.holdings || {}).length },
       agent: { config: getAgentConfig(), circuitBreaker: breaker.getStatus(), risk: riskManager.getStatus() },
       summary: {
         signalsGenerated: todaySignals.length,

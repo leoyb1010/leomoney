@@ -375,6 +375,24 @@ function bindEvents() {
     });
   }
 
+  // Agent 全局扫描
+  const agentGlobalScanBtn = document.getElementById('agentGlobalScanBtn');
+  if (agentGlobalScanBtn) {
+    agentGlobalScanBtn.addEventListener('click', async () => {
+      const { globalScan } = await import('./features/agent.js');
+      await globalScan();
+    });
+  }
+
+  // Agent 自定义策略保存
+  const agentSaveCustomBtn = document.getElementById('agentSaveCustomBtn');
+  if (agentSaveCustomBtn) {
+    agentSaveCustomBtn.addEventListener('click', async () => {
+      const { saveCustomStrategy } = await import('./features/agent.js');
+      await saveCustomStrategy();
+    });
+  }
+
   // Agent 熔断器重置
   const agentResetBreakerBtn = document.getElementById('agentResetBreakerBtn');
   if (agentResetBreakerBtn) {

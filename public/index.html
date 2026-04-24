@@ -396,16 +396,32 @@
       <!-- 状态面板 -->
       <div id="agentStatusPanel" class="agent-status-panel"></div>
 
-      <!-- 策略 + 手动分析 -->
+      <!-- 策略 + 自定义 Prompt + 扫描 -->
       <div class="agent-panels">
         <div class="agent-left">
           <div class="agent-section-title">🎯 策略选择</div>
           <div id="agentStrategyList" class="agent-strategy-list"></div>
 
-          <div class="agent-section-title" style="margin-top:16px">🔍 手动分析</div>
+          <div class="agent-section-title" style="margin-top:16px">✏️ 自定义策略 Prompt</div>
+          <div class="agent-custom-prompt-area">
+            <textarea class="form-input" id="agentCustomPrompt" rows="4" placeholder="输入自定义策略指令，如：&#10;只做白酒板块，跌破5日均线卖出&#10;关注北向资金流入，连续3天加仓的股票" style="width:100%;resize:vertical;font-size:.82rem;line-height:1.4"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <input type="text" class="form-input" id="agentCustomName" placeholder="策略名称（可选）" style="flex:1">
+              <button class="submit-btn" type="button" id="agentSaveCustomBtn" style="width:auto;padding:0 16px;font-size:.82rem">保存并应用</button>
+            </div>
+          </div>
+
+          <div class="agent-section-title" style="margin-top:16px">🔍 分析标的</div>
           <div class="agent-manual-scan">
             <input type="text" class="form-input" id="agentManualSymbol" placeholder="输入代码，如 600519" style="flex:1">
             <button class="submit-btn buy-btn" type="button" id="agentManualScanBtn" style="width:auto;padding:0 16px;font-size:.85rem">分析</button>
+          </div>
+          <button class="submit-btn" type="button" id="agentGlobalScanBtn" style="width:100%;margin-top:8px;font-size:.85rem;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff">🌐 全局扫描（持仓+自选）</button>
+
+          <!-- 分析进度反馈 -->
+          <div id="agentScanProgress" class="agent-scan-progress" style="display:none;margin-top:8px">
+            <div class="agent-scan-progress-bar"><div class="agent-scan-progress-fill" id="agentScanProgressFill"></div></div>
+            <div class="agent-scan-progress-text" id="agentScanProgressText">准备中...</div>
           </div>
         </div>
         <div class="agent-right">
