@@ -48,6 +48,7 @@ export async function renderDashboard() {
   renderDashboardMarketList('astocks');
   renderDashboardWatchlist();
   renderDashboardRecentTrades();
+  renderNavCurve('30');
 }
 
 function setKPI(id, value, sub, valueStyle) {
@@ -232,4 +233,97 @@ document.addEventListener('click', async (e) => {
     if (acc) store.accountData = acc;
     renderOrders(currentOrderFilter);
   } catch(err) { console.error('cancel order failed', err); }
+});
+
+// ── 资产净值曲线 ──────────────────────────────────────────
+let _navChart = null;
+let _navSeries = null;
+
+export function renderNavCurve(range = '30') {
+  const container = document.getElementById('navCurveContainer');
+  if (!container) return;
+
+  // 基于交易记录模拟净值曲线
+  const history = store.accountData?.history || [];
+  const initialAssets = 1000000;
+  const now = new Date();
+  let points = [];
+
+  if (history.length === 0) {
+    // 无交易记录时只显示初始点
+    points.push({ time: Math.floor(now.getTime() / 1000) - 86400, value: initialAssets });
+    points.push({ time: Math.floor(now.getTime() / 1000), value: initialAssets });
+  } else {
+    // 计算每笔交易后的资产净值
+    let nav = initialAssets;
+    points.push({ time: Math.floor(new Date(history[0].time || now).getTime() / 1000) - 3600, value: nav });
+
+    history.forEach(t => {
+      const tTime = t.time ? new Date(t.time) : now;
+      const totalAmount = Number(t.totalAmount || (t.qty * t.price) || 0);
+      if (t.type === 'buy') nav -= totalAmount;
+      else if (t.type === 'sell') nav += totalAmount;
+      points.push({ time: Math.floor(tTime.getTime() / 1000), value: nav });
+    });
+
+    // 最后加一个当前时刻的快照
+    const totalAssets = Number(store.accountSummary?.totalAssets ?? initialAssets);
+    points.push({ time: Math.floor(now.getTime() / 1000), value: totalAssets });
+  }
+
+  // 按 range 过滤
+  if (range !== 'all') {
+    const daysBack = parseInt(range) || 30;
+    const cutoff = Math.floor(now.getTime() / 1000) - daysBack * 86400;
+    const filtered = points.filter(p => p.time >= cutoff);
+    // 确保至少有一个起始点
+    if (filtered.length === 0 && points.length > 0) {
+      filtered.unshift({ time: cutoff, value: points[0].value });
+    }
+    points = filtered;
+  }
+
+  // 确保 time 严格递增（去重）
+  const seen = new Set();
+  points = points.filter(p => {
+    if (seen.has(p.time)) return false;
+    seen.add(p.time);
+    return true;
+  });
+  points.sort((a, b) => a.time - b.time);
+
+  // 创建或复用 LightweightCharts 实例
+  if (!_navChart) {
+    _navChart = LightweightCharts.createChart(container, {
+      layout: { background: { color: 'transparent' }, textColor: '#8892a4', fontSize: 11 },
+      grid: { vertLines: { visible: false }, horzLines: { visible: false } },
+      rightPriceScale: { borderColor: 'transparent', scaleMargins: { top: 0.1, bottom: 0.1 } },
+      timeScale: { borderColor: 'transparent', timeVisible: true, rightOffset: 5 },
+      crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+      width: container.clientWidth,
+      height: container.clientHeight,
+    });
+    _navSeries = _navChart.addAreaSeries({
+      topColor: 'rgba(249,115,22,0.3)',
+      bottomColor: 'rgba(249,115,22,0)',
+      lineColor: '#f97316',
+      lineWidth: 2,
+    });
+  }
+
+  _navSeries.setData(points);
+  _chart_fitNavContent();
+}
+
+function _chart_fitNavContent() {
+  if (_navChart) _navChart.timeScale().fitContent();
+}
+
+// 绑定净值曲线时间范围切换
+document.addEventListener('click', (e) => {
+  const tab = e.target.closest('.nav-curve-tab');
+  if (!tab) return;
+  document.querySelectorAll('.nav-curve-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  renderNavCurve(tab.dataset.range);
 });

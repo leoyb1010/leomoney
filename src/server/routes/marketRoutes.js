@@ -4,10 +4,11 @@
 const express = require('express');
 const router = express.Router();
 const { getMarketStatus } = require('../../../lib/market');
-const { getQuotes, getStockQuote, searchSymbols } = require('../../../lib/quotes');
+const { getQuotes, getStockQuote, searchSymbols, getApiHealth } = require('../../../lib/quotes');
 
 router.get('/market', (req, res) => {
-  res.json({ success: true, ...getMarketStatus() });
+  const health = getApiHealth();
+  res.json({ success: true, ...getMarketStatus(), apiHealth: health });
 });
 
 router.get('/quotes', async (req, res) => {

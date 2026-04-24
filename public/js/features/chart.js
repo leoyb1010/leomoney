@@ -1,11 +1,13 @@
 /**
- * Leomoney K线图模块
+ * Leomoney K线图模块 — LightweightCharts v4
+ * 替换原 Canvas 自绘，保留所有对外接口不变
  */
 import { store } from './store.js';
 import { getFilteredStocks } from './market.js';
 
-let chartHoverIndex = -1;
-let _chartW = 0, _chartH = 0;
+let _chart = null;       // LightweightCharts 实例
+let _candleSeries = null; // K线系列
+let _volumeSeries = null; // 成交量系列
 
 export function generateCandles(symbol, count = 40, isIndex = false) {
   const src = isIndex ? store.selectedIndex : (getFilteredStocks().find(s => s.symbol === symbol) || store.selectedStock);
@@ -15,14 +17,16 @@ export function generateCandles(symbol, count = 40, isIndex = false) {
   const now = new Date();
   const isDaily = store.timeframe === 'D';
   for (let i = 0; i < count; i++) {
-    let dateStr;
+    let time;
     if (isDaily) {
-      const d = new Date(now); d.setDate(d.getDate() - (count - 1 - i));
-      dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      const d = new Date(now);
+      d.setDate(d.getDate() - (count - 1 - i));
+      // LightweightCharts 日线接受 'YYYY-MM-DD' 字符串
+      time = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     } else {
+      // 分钟线用 Unix timestamp (秒)
       const minsBack = (count - 1 - i) * (store.timeframe || 5);
-      const d = new Date(now.getTime() - minsBack * 60000);
-      dateStr = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+      time = Math.floor((now.getTime() - minsBack * 60000) / 1000);
     }
     const open = p;
     const vol = p * 0.012;
@@ -31,7 +35,7 @@ export function generateCandles(symbol, count = 40, isIndex = false) {
     const high = Math.max(open, close) + Math.random() * vol * 0.5;
     const low = Math.min(open, close) - Math.random() * vol * 0.5;
     const volume = Math.floor(Math.random() * 50000 + 10000);
-    arr.push({ open, high, low, close, volume, time: i, date: dateStr });
+    arr.push({ open, high, low, close, volume, time });
     p = close;
   }
   store.candles[symbol] = arr;
@@ -102,142 +106,99 @@ function updateIndexChartHeader() {
 }
 
 export function resizeChartCanvas() {
-  const canvas = document.getElementById('chartCanvas');
-  if (!canvas) return;
-  const container = canvas.parentElement;
-  const dpr = window.devicePixelRatio || 1;
-  const w = container.clientWidth;
-  const h = container.clientHeight;
-  if (w <= 0 || h <= 0) return;
-  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
-    canvas.width = Math.round(w * dpr);
-    canvas.height = Math.round(h * dpr);
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
+  if (_chart) {
+    const container = document.getElementById('chartCanvas');
+    if (container && container.parentElement) {
+      _chart.applyOptions({ width: container.parentElement.clientWidth, height: container.parentElement.clientHeight });
+    }
   }
-  _chartW = w;
-  _chartH = h;
 }
 
-export function drawChart(hoverIdx) {
-  const canvas = document.getElementById('chartCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const dpr = window.devicePixelRatio || 1;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const W = _chartW, H = _chartH;
-  ctx.clearRect(0, 0, W, H);
+export function drawChart() {
+  // 确保图表实例已创建
+  ensureChart();
 
-  let sym, current;
-  if (store.selectedStock) { sym = store.selectedStock.symbol; current = store.selectedStock.price; }
-  else if (store.selectedIndex) { sym = store.selectedIndex.id; current = store.selectedIndex.price; }
-  else {
-    ctx.fillStyle = '#4a5568'; ctx.font = '16px Space Grotesk'; ctx.textAlign = 'center';
-    ctx.fillText('请从左侧选择股票或上方选择大盘指数', W / 2, H / 2); return;
-  }
+  let sym;
+  if (store.selectedStock) sym = store.selectedStock.symbol;
+  else if (store.selectedIndex) sym = store.selectedIndex.id;
+  else return;
+
   const c = store.candles[sym];
   if (!c || !c.length) return;
 
-  const pad = { top: 20, right: 60, bottom: 30, left: 10 };
-  const chartW = W - pad.left - pad.right;
-  const chartH = H - pad.top - pad.bottom;
-  const volH = chartH * 0.2;
-  const priceH = chartH * 0.75;
-  let minP = Infinity, maxP = -Infinity, maxVol = 0;
-  c.forEach(x => { if (x.low < minP) minP = x.low; if (x.high > maxP) maxP = x.high; if (x.volume > maxVol) maxVol = x.volume; });
-  const pRange = maxP - minP || 1;
-  minP -= pRange * 0.05; maxP += pRange * 0.05;
-  const candleW = chartW / c.length;
-  const bodyW = Math.max(1, candleW * 0.65);
+  // 转换为 LightweightCharts 数据格式
+  const candleData = c.map(x => ({
+    time: x.time,
+    open: x.open,
+    high: x.high,
+    low: x.low,
+    close: x.close,
+  }));
+  const volumeData = c.map(x => ({
+    time: x.time,
+    value: x.volume,
+    color: x.close >= x.open ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)',
+  }));
 
-  ctx.strokeStyle = '#1e2d45'; ctx.lineWidth = 0.5;
-  for (let i = 0; i <= 5; i++) {
-    const y = pad.top + (priceH / 5) * i;
-    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
-    const price = maxP - ((maxP - minP) / 5) * i;
-    ctx.fillStyle = '#4a5568'; ctx.font = '11px JetBrains Mono'; ctx.textAlign = 'right';
-    ctx.fillText(price.toFixed(2), W - 5, y + 4);
-  }
+  _candleSeries.setData(candleData);
+  _volumeSeries.setData(volumeData);
+  _chart.timeScale().fitContent();
+}
 
-  c.forEach((x, i) => {
-    const cx = pad.left + i * candleW + candleW / 2;
-    const isUp = x.close >= x.open;
-    const color = isUp ? '#10b981' : '#ef4444';
-    const yHigh = pad.top + ((maxP - x.high) / (maxP - minP)) * priceH;
-    const yLow = pad.top + ((maxP - x.low) / (maxP - minP)) * priceH;
-    ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx, yHigh); ctx.lineTo(cx, yLow); ctx.stroke();
-    const yOpen = pad.top + ((maxP - x.open) / (maxP - minP)) * priceH;
-    const yClose = pad.top + ((maxP - x.close) / (maxP - minP)) * priceH;
-    const bodyTop = Math.min(yOpen, yClose);
-    const bodyHeight = Math.max(1, Math.abs(yClose - yOpen));
-    ctx.fillStyle = color; ctx.fillRect(cx - bodyW / 2, bodyTop, bodyW, bodyHeight);
-    const volBarH = (x.volume / maxVol) * volH;
-    const volY = pad.top + priceH + chartH * 0.05 + volH - volBarH;
-    ctx.fillStyle = isUp ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)';
-    ctx.fillRect(cx - bodyW / 2, volY, bodyW, volBarH);
+function ensureChart() {
+  if (_chart) return;
+  const container = document.getElementById('chartCanvas');
+  if (!container || !container.parentElement) return;
+
+  _chart = LightweightCharts.createChart(container.parentElement, {
+    layout: {
+      background: { color: '#0a0e17' },
+      textColor: '#8892a4',
+      fontSize: 11,
+    },
+    grid: {
+      vertLines: { color: 'rgba(255,255,255,0.05)' },
+      horzLines: { color: 'rgba(255,255,255,0.05)' },
+    },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    rightPriceScale: {
+      borderColor: 'rgba(255,255,255,0.08)',
+      scaleMargins: { top: 0.05, bottom: 0.25 },
+    },
+    timeScale: {
+      borderColor: 'rgba(255,255,255,0.08)',
+      timeVisible: true,
+      secondsVisible: false,
+    },
+    width: container.parentElement.clientWidth,
+    height: container.parentElement.clientHeight,
   });
 
-  const last = c[c.length - 1];
-  const lastY = pad.top + ((maxP - last.close) / (maxP - minP)) * priceH;
-  const isUpLast = last.close >= last.open;
-  ctx.setLineDash([4, 4]); ctx.strokeStyle = isUpLast ? '#10b981' : '#ef4444'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(pad.left, lastY); ctx.lineTo(W - pad.right, lastY); ctx.stroke(); ctx.setLineDash([]);
-  ctx.fillStyle = isUpLast ? '#10b981' : '#ef4444'; ctx.fillRect(W - pad.right, lastY - 10, 58, 20);
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px JetBrains Mono'; ctx.textAlign = 'center';
-  ctx.fillText(last.close.toFixed(2), W - pad.right + 29, lastY + 4);
+  _candleSeries = _chart.addCandlestickSeries({
+    upColor: '#10b981',
+    downColor: '#ef4444',
+    borderUpColor: '#10b981',
+    borderDownColor: '#ef4444',
+    wickUpColor: '#10b981',
+    wickDownColor: '#ef4444',
+  });
 
-  const hi = (hoverIdx !== undefined && hoverIdx >= 0) ? hoverIdx : chartHoverIndex;
-  if (hi >= 0 && hi < c.length) {
-    const x = c[hi];
-    const cx = pad.left + hi * candleW + candleW / 2;
-    ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 0.8;
-    ctx.beginPath(); ctx.moveTo(cx, pad.top); ctx.lineTo(cx, H - pad.bottom); ctx.stroke(); ctx.setLineDash([]);
-    const hoverPriceY = pad.top + ((maxP - x.close) / (maxP - minP)) * priceH;
-    ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 0.8;
-    ctx.beginPath(); ctx.moveTo(pad.left, hoverPriceY); ctx.lineTo(W - pad.right, hoverPriceY); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = '#3b82f6'; ctx.fillRect(W - pad.right, hoverPriceY - 10, 58, 20);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 10px JetBrains Mono'; ctx.textAlign = 'center';
-    ctx.fillText(x.close.toFixed(2), W - pad.right + 29, hoverPriceY + 4);
-    const isUpK = x.close >= x.open;
-    const chg = x.close - x.open;
-    const chgPct = (chg / x.open * 100) || 0;
-    const boxW = 155, boxH = 105;
-    let boxX = cx + 15, boxY = pad.top + 10;
-    if (boxX + boxW > W - pad.right) boxX = cx - boxW - 15;
-    if (boxY + boxH > H - pad.bottom) boxY = H - pad.bottom - boxH - 5;
-    ctx.fillStyle = 'rgba(26,34,53,0.95)'; ctx.strokeStyle = '#2a3f5f'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.roundRect(boxX, boxY, boxW, boxH, 6); ctx.fill(); ctx.stroke();
-    const lineH = 16; let ty = boxY + 16;
-    ctx.font = 'bold 11px Space Grotesk'; ctx.fillStyle = '#e2e8f0'; ctx.textAlign = 'left';
-    ctx.fillText(x.date || 'Day ' + x.time, boxX + 10, ty); ty += lineH;
-    ctx.font = '10px JetBrains Mono'; ctx.fillStyle = isUpK ? '#10b981' : '#ef4444';
-    ctx.fillText('开 ' + x.open.toFixed(2) + '  高 ' + x.high.toFixed(2), boxX + 10, ty); ty += lineH;
-    ctx.fillStyle = '#e2e8f0'; ctx.fillText('收 ' + x.close.toFixed(2) + '  低 ' + x.low.toFixed(2), boxX + 10, ty); ty += lineH;
-    ctx.fillStyle = isUpK ? '#10b981' : '#ef4444';
-    ctx.fillText((isUpK ? '+' : '') + chg.toFixed(2) + ' (' + (isUpK ? '+' : '') + chgPct.toFixed(2) + '%)', boxX + 10, ty); ty += lineH;
-    ctx.fillStyle = '#8892a4'; ctx.fillText('量 ' + x.volume.toLocaleString(), boxX + 10, ty);
-  }
+  _volumeSeries = _chart.addHistogramSeries({
+    priceFormat: { type: 'volume' },
+    priceScaleId: 'volume',
+  });
+
+  _chart.priceScale('volume').applyOptions({
+    scaleMargins: { top: 0.8, bottom: 0 },
+  });
+
+  // 隐藏原来的 canvas 元素（LightweightCharts 会创建自己的 canvas）
+  container.style.display = 'none';
 }
 
 export function setupChartHover() {
-  const canvas = document.getElementById('chartCanvas');
-  if (!canvas) return;
-  canvas.addEventListener('mousemove', function (e) {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    let sym;
-    if (store.selectedStock) sym = store.selectedStock.symbol;
-    else if (store.selectedIndex) sym = store.selectedIndex.id;
-    else return;
-    const c = store.candles[sym]; if (!c || !c.length) return;
-    const pad = { top: 20, right: 60, bottom: 30, left: 10 };
-    const chartW = _chartW - pad.left - pad.right;
-    const candleW = chartW / c.length;
-    const idx = Math.floor((mx - pad.left) / candleW);
-    if (idx >= 0 && idx < c.length) { chartHoverIndex = idx; } else { chartHoverIndex = -1; }
-    drawChart(idx);
-  });
-  canvas.addEventListener('mouseleave', function () { chartHoverIndex = -1; drawChart(); });
+  // LightweightCharts 自带 crosshair，无需手动绑定
+  // 但保留此函数签名以兼容 main.js 的调用
 }
 
 export function setTimeframe(tf) {

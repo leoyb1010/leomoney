@@ -38,6 +38,15 @@ export function updateStatusUI() {
     const tsEl = document.getElementById('quoteTimestamp');
     if (tsEl) tsEl.textContent = '更新于 ' + timeStr;
   }
+
+  // API 健康状态指示器
+  const health = store.marketStatus?.apiHealth;
+  if (health) {
+    const sinaDot = document.getElementById('sinaApiDot');
+    const eastDot = document.getElementById('eastmoneyApiDot');
+    if (sinaDot) sinaDot.className = 'api-dot' + (health.sina?.ok ? '' : health.sina?.failCount > 0 ? ' warn' : ' error');
+    if (eastDot) eastDot.className = 'api-dot' + (health.eastmoney?.ok ? '' : health.eastmoney?.failCount > 0 ? ' warn' : ' error');
+  }
 }
 
 export async function refreshQuotes() {

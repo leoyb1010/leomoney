@@ -39,6 +39,23 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   const status = getMarketStatus();
+
+  // 数据文件完整性检查
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const stateFile = path.join(__dirname, 'data', 'state.json');
+    if (fs.existsSync(stateFile)) {
+      const raw = fs.readFileSync(stateFile, 'utf-8');
+      JSON.parse(raw);
+      console.log('   ✅ 数据文件完整性检查通过');
+    } else {
+      console.log('   ℹ️  数据文件不存在，首次启动将自动创建');
+    }
+  } catch (e) {
+    console.warn('   ⚠️  state.json 损坏，将尝试从备份恢复...');
+  }
+
   console.log(`\n🦁 Leomoney v${pkg.version} 已启动`);
   console.log(`   地址: http://localhost:${PORT}`);
   console.log(`   A股: ${status.a.status} | 港股: ${status.hk.status} | 美股: ${status.us.status} | 加密: ${status.crypto.status}`);

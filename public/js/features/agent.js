@@ -67,36 +67,41 @@ function renderStatusPanel(status) {
   if (!el) return;
 
   const { llmReady, searchConfigured, agent, circuitBreaker, risk } = status;
-  const levelColors = { 1: '#3b82f6', 2: '#f59e0b', 3: '#ef4444' };
   const levelNames = { 1: '监控者', 2: '顾问者', 3: '代理者' };
-  const breakerColors = { CLOSED: '#10b981', OPEN: '#ef4444', HALF_OPEN: '#f59e0b' };
   const breakerNames = { CLOSED: '正常', OPEN: '熔断', HALF_OPEN: '试探' };
+  const breakerClass = { CLOSED: '', OPEN: 'open', HALF_OPEN: 'half-open' };
+  const todayPnl = Number(risk?.todayPnl || 0);
 
   el.innerHTML = `
     <div class="agent-status-grid">
-      <div class="agent-status-card">
-        <div class="agent-status-label">LLM</div>
-        <div class="agent-status-value" style="color:${llmReady ? '#10b981' : '#ef4444'}">${llmReady ? '✅ 已连接' : '❌ 未配置'}</div>
+      <div class="agent-main-card">
+        <div class="agent-level-badge" id="agentLevelBadge">L${agent?.level || 1} ${levelNames[agent?.level || 1]}</div>
+        <div class="agent-switch-row">
+          <span style="font-size:.85rem;color:var(--text-secondary)">Agent 状态</span>
+          <span style="font-size:.85rem;font-weight:600;color:${agent?.enabled ? 'var(--green)' : 'var(--text-muted)'}">${agent?.enabled ? '🟢 运行中' : '⏹️ 已停止'}</span>
+        </div>
+        <div class="agent-breaker-row">
+          <span class="breaker-label" style="font-size:.82rem;color:var(--text-secondary)">熔断器</span>
+          <div class="breaker-indicator ${breakerClass[circuitBreaker?.state || 'CLOSED']}" id="breakerIndicator">
+            <div class="breaker-dot"></div>
+            <span id="breakerState" style="font-size:.82rem;font-weight:600">${breakerNames[circuitBreaker?.state || 'CLOSED']}</span>
+          </div>
+        </div>
       </div>
-      <div class="agent-status-card">
-        <div class="agent-status-label">搜索引擎</div>
-        <div class="agent-status-value" style="color:${searchConfigured ? '#10b981' : '#f59e0b'}">${searchConfigured ? '✅ 已配置' : '⚠️ 未配置'}</div>
+      <div class="agent-metric-card">
+        <div class="metric-icon">🤖</div>
+        <div class="metric-label">LLM 状态</div>
+        <div class="metric-value" id="agentLLMStatus" style="color:${llmReady ? 'var(--green)' : 'var(--red)'}">${llmReady ? '已连接' : '未配置'}</div>
       </div>
-      <div class="agent-status-card">
-        <div class="agent-status-label">运行等级</div>
-        <div class="agent-status-value" style="color:${levelColors[agent?.level || 1]}">L${agent?.level || 1} ${levelNames[agent?.level || 1]}</div>
+      <div class="agent-metric-card">
+        <div class="metric-icon">📊</div>
+        <div class="metric-label">今日交易</div>
+        <div class="metric-value" id="agentTodayTrades">${risk?.todayTradeCount || 0}/${risk?.maxTradesPerDay || 10}</div>
       </div>
-      <div class="agent-status-card">
-        <div class="agent-status-label">熔断器</div>
-        <div class="agent-status-value" style="color:${breakerColors[circuitBreaker?.state || 'CLOSED']}">${breakerNames[circuitBreaker?.state || 'CLOSED']}</div>
-      </div>
-      <div class="agent-status-card">
-        <div class="agent-status-label">今日交易</div>
-        <div class="agent-status-value">${risk?.todayTradeCount || 0} / ${risk?.maxTradesPerDay || 10}</div>
-      </div>
-      <div class="agent-status-card">
-        <div class="agent-status-label">Agent 开关</div>
-        <div class="agent-status-value" style="color:${agent?.enabled ? '#10b981' : '#6b7280'}">${agent?.enabled ? '🟢 运行中' : '⏹️ 已停止'}</div>
+      <div class="agent-metric-card">
+        <div class="metric-icon">💰</div>
+        <div class="metric-label">今日盈亏</div>
+        <div class="metric-value" id="agentTodayPnl" style="color:${todayPnl >= 0 ? 'var(--green)' : 'var(--red)'}">${todayPnl >= 0 ? '+' : ''}${todayPnl.toFixed(2)}</div>
       </div>
     </div>
   `;
@@ -184,26 +189,26 @@ async function renderSignals() {
 
     el.innerHTML = data.signals.map(s => {
       const actionColors = { '买入': '#10b981', BUY: '#10b981', '卖出': '#ef4444', SELL: '#ef4444', '观望': '#6b7280', HOLD: '#6b7280' };
-      const actionBg = { '买入': 'var(--green-bg)', BUY: 'var(--green-bg)', '卖出': 'var(--red-bg)', SELL: 'var(--red-bg)', '观望': 'var(--bg-input)', HOLD: 'var(--bg-input)' };
       const actionLabel = { BUY: '买入', SELL: '卖出', HOLD: '观望' };
       const displayAction = actionLabel[s.action] || s.action;
+      const dotClass = (s.action === 'BUY' || s.action === '买入') ? 'buy' : (s.action === 'SELL' || s.action === '卖出') ? 'sell' : 'hold';
+      const time = s.ts ? new Date(s.ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '--:--';
       return `
-        <div class="signal-card">
-          <div class="signal-header">
-            <span class="signal-symbol">${s.symbol}</span>
-            <span class="signal-name">${s.name || ''}</span>
-            <span class="signal-action" style="color:${actionColors[s.action] || '#6b7280'};background:${actionBg[s.action] || 'var(--bg-input)'}">${displayAction}</span>
-            <span class="signal-strategy">${s.strategyName || ''}</span>
+        <div class="signal-timeline-item">
+          <div class="signal-time-dot">
+            <div class="signal-dot ${dotClass}"></div>
+            <div class="signal-time">${time}</div>
           </div>
-          <div class="signal-body">
-            <div class="signal-price">¥${Number(s.price || 0).toFixed(2)}</div>
-            <div class="signal-confidence">置信度: ${(Number(s.confidence || 0) * 100).toFixed(0)}%</div>
-            <div class="signal-risk">风险: ${s.riskLevel || '中'}</div>
-          </div>
-          <div class="signal-reason">${s.reason || s.thesis || ''}</div>
-          <div class="signal-footer">
-            <span class="signal-time">${s.ts ? new Date(s.ts).toLocaleString('zh-CN', { hour12: false }) : ''}</span>
-            ${displayAction !== '观望' ? `<button class="signal-gen-proposal" data-signal-id="${s.id}">生成方案</button>` : ''}
+          <div class="signal-content-card">
+            <div class="signal-header">
+              <span class="signal-symbol">${s.symbol}</span>
+              <span class="signal-name">${s.name || ''}</span>
+              <span class="signal-action-badge ${dotClass}">${displayAction}</span>
+              <span class="signal-confidence">${(Number(s.confidence || 0) * 100).toFixed(0)}%</span>
+            </div>
+            <div class="signal-reason">${s.reason || s.thesis || ''}</div>
+            <div class="signal-meta">${s.strategyName || ''} · 风险: ${s.riskLevel || '中'}</div>
+            ${displayAction !== '观望' ? `<div style="margin-top:6px"><button class="signal-gen-proposal" data-signal-id="${s.id}">生成方案</button></div>` : ''}
           </div>
         </div>
       `;

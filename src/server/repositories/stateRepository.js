@@ -125,6 +125,20 @@ function loadState() {
     }
   } catch (e) {
     console.error('[StateRepository] Load failed:', e.message);
+    // 尝试从备份恢复
+    for (let i = 1; i <= 3; i++) {
+      const backupPath = STATE_FILE.replace('.json', `.backup.${i}.json`);
+      try {
+        if (fs.existsSync(backupPath)) {
+          const raw = fs.readFileSync(backupPath, 'utf-8');
+          const state = JSON.parse(raw);
+          console.log(`[StateRepository] ✅ 从备份 ${i} 恢复成功`);
+          return migrateIfNeeded(state);
+        }
+      } catch (be) {
+        console.error(`[StateRepository] 备份 ${i} 也损坏:`, be.message);
+      }
+    }
   }
 
   const now = new Date().toISOString();
@@ -152,10 +166,40 @@ function loadState() {
   };
 }
 
+/**
+ * 原子写入：先写临时文件，再重命名
+ * 同时维护最多 3 个备份文件
+ */
 function saveState(state) {
   ensureDataDir();
   state.updatedAt = new Date().toISOString();
-  fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+
+  // 备份轮转（最多3份）
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      const stat = fs.statSync(STATE_FILE);
+      if (stat.size > 1024) { // 只备份大于 1KB 的合法文件
+        // 3→删除, 2→3, 1→2, current→1
+        try { fs.unlinkSync(STATE_FILE.replace('.json', '.backup.3.json')); } catch {}
+        try { fs.renameSync(STATE_FILE.replace('.json', '.backup.2.json'), STATE_FILE.replace('.json', '.backup.3.json')); } catch {}
+        try { fs.renameSync(STATE_FILE.replace('.json', '.backup.1.json'), STATE_FILE.replace('.json', '.backup.2.json')); } catch {}
+        try { fs.copyFileSync(STATE_FILE, STATE_FILE.replace('.json', '.backup.1.json')); } catch {}
+      }
+    }
+  } catch (e) {
+    // 备份失败不应阻止写入
+    console.warn('[StateRepository] Backup rotation failed:', e.message);
+  }
+
+  // 原子写入
+  const tmpPath = STATE_FILE + '.tmp.' + Date.now();
+  try {
+    fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2), 'utf-8');
+    fs.renameSync(tmpPath, STATE_FILE);
+  } catch (err) {
+    try { fs.unlinkSync(tmpPath); } catch {}
+    throw err;
+  }
 }
 
 function withStateTransaction(mutator) {

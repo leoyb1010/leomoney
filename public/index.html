@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/css/tokens.css">
 <link rel="stylesheet" href="/css/components.css">
 <link rel="stylesheet" href="/css/app.css">
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
 
@@ -23,6 +24,10 @@
     <div class="market-status" data-testid="market-status" data-role="market-status">
       <div class="status-dot" id="statusDot"></div>
       <span id="marketLabel">检测中...</span>
+    </div>
+    <div class="api-status-indicator" id="apiStatusIndicator" title="数据源状态">
+      <span class="api-dot" id="sinaApiDot" title="新浪财经"></span>
+      <span class="api-dot" id="eastmoneyApiDot" title="东方财富"></span>
     </div>
     <div class="balance-display" data-testid="header-balance" data-role="account-balance" data-metric="cash">
       <span class="balance-label">可用资金</span>
@@ -123,6 +128,20 @@
           <div class="kpi-label">持仓数</div>
           <div class="kpi-value" id="dkpiHoldingCount">--</div>
           <div class="kpi-sub" id="dkpiPendingOrders">待触发: --</div>
+        </div>
+      </div>
+      <!-- 资产净值曲线 -->
+      <div class="dashboard-section" id="navCurveSection">
+        <div class="section-header">
+          <span class="section-title">📈 资产净值曲线</span>
+          <div class="nav-curve-tabs">
+            <button class="nav-curve-tab" data-range="7">7天</button>
+            <button class="nav-curve-tab active" data-range="30">30天</button>
+            <button class="nav-curve-tab" data-range="90">90天</button>
+            <button class="nav-curve-tab" data-range="all">全部</button>
+          </div>
+        </div>
+        <div class="nav-curve-container" id="navCurveContainer" style="height:200px;position:relative;">
         </div>
       </div>
       <div class="dashboard-panels">
@@ -296,6 +315,17 @@
     <!-- VIEW: 资产 -->
     <div class="view portfolio-view" id="view-portfolio" data-testid="view-portfolio" data-role="view" data-view="portfolio">
       <div class="portfolio-header"><span>📁 资产总览</span><span style="font-size:.75rem;color:var(--text-secondary);margin-left:8px" id="portfolioSubtitle">CNY计价</span></div>
+      <!-- 持仓分布可视化 -->
+      <div class="portfolio-charts-row">
+        <div class="portfolio-chart-card" id="holdingPieCard">
+          <div class="chart-card-title">持仓分布</div>
+          <div id="holdingPieContainer" style="height:220px;"></div>
+        </div>
+        <div class="portfolio-chart-card" id="holdingPnlCard">
+          <div class="chart-card-title">盈亏分布</div>
+          <div id="holdingPnlContainer" style="height:220px;"></div>
+        </div>
+      </div>
       <div class="portfolio-summary" id="portfolioSummary" data-testid="portfolio-summary" data-role="portfolio-summary"></div>
       <div id="portfolioList" data-testid="portfolio-list" data-role="portfolio-list"></div>
     </div>
