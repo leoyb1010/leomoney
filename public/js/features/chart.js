@@ -109,7 +109,8 @@ export function resizeChartCanvas() {
   if (_chart) {
     const container = document.getElementById('chartCanvas');
     if (container && container.parentElement) {
-      _chart.applyOptions({ width: container.parentElement.clientWidth, height: container.parentElement.clientHeight });
+      const h = Math.min(container.parentElement.clientHeight, window.innerHeight * 0.45);
+      _chart.applyOptions({ width: container.parentElement.clientWidth, height: h });
     }
   }
 }
