@@ -13,9 +13,17 @@ export function generateCandles(symbol, count = 40, isIndex = false) {
   const arr = [];
   let p = src.price || 100;
   const now = new Date();
+  const isDaily = store.timeframe === 'D';
   for (let i = 0; i < count; i++) {
-    const d = new Date(now); d.setDate(d.getDate() - (count - 1 - i));
-    const dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    let dateStr;
+    if (isDaily) {
+      const d = new Date(now); d.setDate(d.getDate() - (count - 1 - i));
+      dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    } else {
+      const minsBack = (count - 1 - i) * (store.timeframe || 5);
+      const d = new Date(now.getTime() - minsBack * 60000);
+      dateStr = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    }
     const open = p;
     const vol = p * 0.012;
     const change = (Math.random() - 0.48) * vol;
@@ -237,6 +245,6 @@ export function setTimeframe(tf) {
   document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
   const btn = document.querySelector(`.tf-btn[data-tf="${tf}"]`);
   if (btn) btn.classList.add('active');
-  if (store.selectedStock) { generateCandles(store.selectedStock.symbol); drawChart(); }
-  if (store.selectedIndex) { generateCandles(store.selectedIndex.id, 40, true); drawChart(); }
+  const sym = store.selectedStock ? store.selectedStock.symbol : (store.selectedIndex ? store.selectedIndex.id : null);
+  if (sym) { generateCandles(sym, tf === 'D' ? 60 : 40, !!store.selectedIndex); drawChart(); }
 }

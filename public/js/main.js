@@ -411,11 +411,12 @@ function bindEvents() {
     });
   }
 
-  // K线周期
+  // K线周期 — 支持 "D" (日线) 等非数字值
   document.querySelectorAll('.tf-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const tf = parseInt(btn.dataset.tf);
-      if (!isNaN(tf)) {
+      const raw = btn.dataset.tf;
+      const tf = raw === 'D' ? 'D' : parseInt(raw);
+      if (!isNaN(tf) || tf === 'D') {
         import('./features/chart.js').then(m => m.setTimeframe(tf));
       }
     });
