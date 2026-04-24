@@ -29,6 +29,19 @@ export async function apiPost(path, body) {
   }
 }
 
+export async function apiPatch(path, body) {
+  try {
+    const r = await fetch(API_BASE + path, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return await r.json();
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
 export async function apiDelete(path) {
   try {
     const r = await fetch(API_BASE + path, { method: 'DELETE' });
