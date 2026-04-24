@@ -130,10 +130,13 @@ export function calcTotal() {
   const rules = store.selectedStock ? getCategoryRules(store.selectedStock.category) : getCategoryRules('astocks');
   const cur = store.selectedStock?.currency || 'CNY';
   const totalOrig = price * qty;
+  const fee = totalOrig * 0.0003; // 万三手续费
+  const reserve = totalOrig + fee; // 预冻结金额
   const totalCNY = toCNY(totalOrig, cur, store.fxRates);
   const totalEl = document.getElementById('tradeTotal');
   if (totalEl) {
-    totalEl.textContent = cur !== 'CNY' ? `$${totalOrig.toFixed(2)} ≈ ${formatMoney(totalCNY)}` : formatMoney(totalOrig);
+    const feeText = `手续费 ${formatMoney(fee)} · 预冻结 ${formatMoney(reserve)}`;
+    totalEl.textContent = cur !== 'CNY' ? `$${totalOrig.toFixed(2)} ≈ ${formatMoney(totalCNY)} · ${feeText}` : `${formatMoney(totalOrig)} · ${feeText}`;
   }
 
   let qtyValid = qty >= rules.minQty;
@@ -141,6 +144,10 @@ export function calcTotal() {
   const valid = price && qtyValid;
   const submitBtn = document.getElementById('submitBtn');
   if (submitBtn) submitBtn.disabled = !valid;
+
+  // 使用新 cash 结构
+  const cash = store.accountData.cash || { available: store.accountData.balance || 0 };
+  const positions = store.accountData.positions || store.accountData.holdings || {};
 
   const validationEl = document.getElementById('tradeValidation');
   if (validationEl) {
@@ -152,14 +159,16 @@ export function calcTotal() {
     } else if (valid) {
       const totalCNYForCheck = toCNY(price * qty, cur, store.fxRates);
       if (store.tradeType === 'buy') {
-        if (totalCNYForCheck > store.accountData.balance) validationEl.textContent = `资金不足，需约 ${formatMoney(totalCNYForCheck)}，可用 ${formatMoney(store.accountData.balance)}`;
-        else validationEl.textContent = '';
-        validationEl.className = totalCNYForCheck > store.accountData.balance ? 'trade-validation error' : 'trade-validation';
+        const needCash = toCNY(reserve, cur, store.fxRates);
+        if (needCash > cash.available) validationEl.textContent = `资金不足，需冻结 ${formatMoney(needCash)}，可用 ${formatMoney(cash.available)}`;
+        else validationEl.textContent = `✓ 可下单，将冻结 ${formatMoney(needCash)}`;
+        validationEl.className = needCash > cash.available ? 'trade-validation error' : 'trade-validation success';
       } else {
-        const h = store.accountData.holdings[store.selectedStock?.symbol];
-        if (h && qty > h.qty) validationEl.textContent = `可卖不足，持有 ${h?.qty || 0} ${rules.unit}`;
-        else validationEl.textContent = '';
-        validationEl.className = (h && qty > h.qty) ? 'trade-validation error' : 'trade-validation';
+        const pos = positions[store.selectedStock?.symbol];
+        const sellable = pos?.sellableQty !== undefined ? pos.sellableQty : pos?.qty;
+        if (pos && qty > sellable) validationEl.textContent = `可卖不足，可卖 ${sellable || 0} ${rules.unit}`;
+        else validationEl.textContent = `✓ 可卖出 ${qty} ${rules.unit}`;
+        validationEl.className = (pos && qty > sellable) ? 'trade-validation error' : 'trade-validation success';
       }
     } else {
       validationEl.textContent = '';
@@ -177,8 +186,9 @@ export function calcTotal() {
         : Math.floor(store.accountData.balance / priceInCNY / rules2.step);
       hintEl.textContent = `可买 ${Math.max(0, maxQty)} ${rules2.unit}`;
     } else {
-      const h = store.accountData.holdings[store.selectedStock?.symbol];
-      hintEl.textContent = `可卖 ${h ? h.qty : 0} ${rules2.unit}`;
+      const pos = store.accountData.positions?.[store.selectedStock?.symbol] || store.accountData.holdings?.[store.selectedStock?.symbol];
+      const sellable = pos?.sellableQty !== undefined ? pos.sellableQty : pos?.qty;
+      hintEl.textContent = `可卖 ${sellable || 0} ${rules2.unit}`;
     }
   }
 }

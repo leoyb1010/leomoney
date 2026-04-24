@@ -189,7 +189,14 @@ export async function refreshFx() {
 
 export function updateBalance() {
   const el = document.getElementById('headerBalance');
-  if (el) el.textContent = formatMoney(store.accountData.balance);
+  if (!el) return;
+  const cash = store.accountData.cash;
+  if (cash && typeof cash === 'object') {
+    el.textContent = `可用 ${formatMoney(cash.available)} / 冻结 ${formatMoney(cash.frozen)} / 总 ${formatMoney(cash.total)}`;
+  } else {
+    // 兼容旧结构
+    el.textContent = formatMoney(store.accountData.balance);
+  }
 }
 
 export async function resetAccount() {

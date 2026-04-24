@@ -187,6 +187,19 @@ async function renderProposals() {
             ${p.reason ? `<div class="proposal-reason">原因: ${p.reason}</div>` : ''}
             ${p.warnings?.length ? `<div class="proposal-warnings">${p.warnings.map(w => '⚠️ ' + w).join('；')}</div>` : ''}
             ${p.rejectionReason ? `<div class="proposal-rejection">❌ ${p.rejectionReason}</div>` : ''}
+            ${p.riskCheck ? `
+              <div class="proposal-riskcheck">
+                <div class="riskcheck-level" style="color:${p.riskCheck.level === 'PASS' ? '#10b981' : p.riskCheck.level === 'WARN' ? '#f59e0b' : '#ef4444'}">风控: ${p.riskCheck.level}</div>
+                ${p.riskCheck.reasons?.length ? `<div class="riskcheck-reasons">${p.riskCheck.reasons.map(r => '· ' + r).join('<br>')}</div>` : ''}
+                ${p.riskCheck.machineCode?.length ? `<div class="riskcheck-codes" style="font-size:.7rem;color:var(--text-muted)">[${p.riskCheck.machineCode.join(', ')}]</div>` : ''}
+              </div>
+            ` : ''}
+            ${p.executionResult ? `
+              <div class="proposal-execution" style="font-size:.8rem;margin-top:4px;padding:4px 8px;background:var(--bg-input);border-radius:4px">
+                ${p.executionResult.success ? `✅ 执行成功` : `❌ 执行失败: ${p.executionResult.error || ''}`}
+                ${p.executionResult.orderId ? ` · 订单: ${p.executionResult.orderId}` : ''}
+              </div>
+            ` : ''}
           </div>
           <div class="proposal-footer">
             <span class="proposal-time">${new Date(p.createdAt).toLocaleString('zh-CN', { hour12: false })}</span>
