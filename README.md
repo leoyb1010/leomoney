@@ -244,6 +244,49 @@ leomoney/
 
 ## Changelog
 
+### v1.8.0 — 2026-04-24
+
+**🔧 五阶段核心交易正确性重构**
+
+本次重构按 Phase 1→5 顺序完成，每阶段独立提交、独立测试、独立可运行。
+
+#### Phase 1 — P0 核心交易正确性
+- **Decimal 金额计算** (`src/server/domain/money.js`) — 消灭浮点误差，统一金额/数量/成本/盈亏计算
+- **订单状态机** (`src/server/domain/orderStateMachine.js`) — 10 状态 + 流转表，禁止非法状态跳转
+- **冻结/解冻账本** (`src/server/domain/ledger.js`) — 买单冻结现金（含手续费预留），卖单冻结持仓，撤单/结算失败自动回滚
+- **条件单修复** — 创建即冻结资源，触发只做状态流转，不再临时抢资源
+- **旧账户自动迁移** — balance→cash / holdings→positions
+
+#### Phase 2 — P1 Agent 决策链路可靠性
+- **Observation Builder** (`lib/agent/observationBuilder.js`) — 统一构建行情/账户/持仓/订单/风控/时段完整快照
+- **Schema 校验** (`lib/agent/schema.js`) — LLM 输出严格解析，非法 JSON/字段/动作 安全降级为 HOLD
+- **审计链** (`lib/agent/audit.js`) — observation→prompt→raw→parsed→risk→execution 完整链路持久化到 `data/audit/`
+- **执行链路修复** — 所有交易调用加 await，执行前重新读取账户状态 + 二次风控
+
+#### Phase 3 — P2 风控与异常处理
+- **硬风控服务** (`src/server/services/riskControlService.js`) — 12 项前置检查（单笔限额/仓位/日累计/禁买名单/价格跳变/空值保护/最低净值/挂单冲突等）
+- **持仓 FIFO 成本法** (`src/analytics/position.js`) — 超卖直接报错
+- **最大回撤修复** (`src/analytics/metrics.js`) — 基于权益曲线计算，新增手续费占比
+
+#### Phase 4 — P3 架构与回测可信度
+- **事件总线** (`src/server/domain/events.js`) — 15 种事件类型 + 内存缓存 + 文件持久化 + 订单生命周期追踪
+- **撮合服务** (`src/server/services/matchingService.js`) — 模拟盘即时撮合 / 回测 bar 撮合 / 限价+涨跌停检查
+- **结算服务** (`src/server/services/settlementService.js`) — 买入/卖出结算，事件发射
+- **回测时间语义** — t 时刻只能看到 t 及之前的数据
+
+#### Phase 5 — P4 UI/交互/可视化
+- **Header 余额** — 显示 可用/冻结/总资金
+- **持仓卡片** — 显示 总/可卖/冻结数量
+- **下单面板** — 实时显示预估手续费 + 预冻结金额，买入查可用资金，卖出查可卖数量
+- **Agent 方案卡** — 显示风控结果（level/reasons/machineCode）+ 执行结果
+
+测试覆盖：
+- Phase 1: 10 项测试（Decimal/状态机/冻结/结算/超卖/迁移/部分成交）
+- Phase 2: 8 项测试（schema 解析/降级/代码块/混合文本）
+- Phase 3: 7 项测试（FIFO/超卖/最大回撤/硬风控）
+- Phase 4: 7 项测试（事件流/撮合/结算/未来数据防护）
+- Phase 5: 4 项测试（结构适配/兼容/预估/风控显示）
+
 ### v1.7.0 — 2026-04-23
 
 **🤖 Agent 自动交易系统 Level 1-3 全量上线**
