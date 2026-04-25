@@ -15,6 +15,7 @@ const marketRoutes = require('./src/server/routes/marketRoutes');
 const accountRoutes = require('./src/server/routes/accountRoutes');
 const tradeRoutes = require('./src/server/routes/tradeRoutes');
 const analysisRoutes = require('./src/server/routes/analysisRoutes');
+const agentRoutes = require('./src/server/routes/agentRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3210;
@@ -27,6 +28,7 @@ app.use('/api', marketRoutes);
 app.use('/api', accountRoutes);
 app.use('/api', tradeRoutes);
 app.use('/api', analysisRoutes);
+app.use('/api', agentRoutes);
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
