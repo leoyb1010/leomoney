@@ -30,6 +30,13 @@ app.use('/api', tradeRoutes);
 app.use('/api', analysisRoutes);
 app.use('/api', agentRoutes);
 
+// SSE 实时推送
+const { sseService } = require('./lib/sse');
+app.get('/api/sse', (req, res) => {
+  const channels = req.query.channels?.split(',') || ['quotes', 'agent', 'trade', 'system'];
+  sseService.addClient(res, channels);
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -42,20 +49,17 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   const status = getMarketStatus();
 
-  // 数据文件完整性检查
+  // 数据文件完整性检查（v3 增强：自动备份恢复 + Schema 校验）
   try {
-    const fs = require('fs');
-    const path = require('path');
-    const stateFile = path.join(__dirname, 'data', 'state.json');
-    if (fs.existsSync(stateFile)) {
-      const raw = fs.readFileSync(stateFile, 'utf-8');
-      JSON.parse(raw);
-      console.log('   ✅ 数据文件完整性检查通过');
+    const { startupIntegrityCheck } = require('./src/server/repositories/stateRepository');
+    const check = startupIntegrityCheck();
+    if (check.valid) {
+      console.log(`   ✅ ${check.message}`);
     } else {
-      console.log('   ℹ️  数据文件不存在，首次启动将自动创建');
+      console.warn(`   ⚠️  ${check.message}`);
     }
   } catch (e) {
-    console.warn('   ⚠️  state.json 损坏，将尝试从备份恢复...');
+    console.warn('   ⚠️  完整性检查异常:', e.message);
   }
 
   console.log(`\n🦁 Leomoney v${pkg.version} 已启动`);
@@ -66,6 +70,9 @@ app.listen(PORT, () => {
   // 启动后台调度器（条件单自动触发 + 策略扫描）
   const { startScheduler } = require('./lib/scheduler');
   startScheduler();
+
+  // 启动 SSE 实时推送
+  sseService.startAll();
 
   // Agent 状态
   const { isLLMReady } = require('./lib/agent/brain');

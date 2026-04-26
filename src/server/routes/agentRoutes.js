@@ -1,18 +1,21 @@
 /**
- * Leomoney Agent API 路由
- * 16 个端点覆盖：配置/策略/信号/方案/熔断器/风控/日志
+ * Leomoney Agent API 路由 v3
+ * 20 个端点覆盖：配置/策略/信号/方案/熔断器/风控/日志/回测/健康/SSE
  */
 
 const express = require('express');
 const router = express.Router();
 
 const { getAgentConfig, updateAgentConfig, getDecisionLog } = require('../../../lib/scheduler');
-const { generateSignal, createProposal, executeProposal, scanSymbols, getSignals, getProposals, approveProposal, rejectProposal } = require('../../../lib/agent/signalEngine');
+const { generateSignal, createProposal, executeProposal, scanSymbols, getSignals, getProposals, approveProposal, rejectProposal } = require('../../../lib/agent/cognitiveLoop');
 const { breaker, getBreakerForAccount } = require('../../../lib/agent/circuitBreaker');
 const { riskManager, getRiskManagerForAccount } = require('../../../lib/agent/riskManager');
 const { listStrategies, getStrategy, createCustomStrategy, getStrategyPrompt } = require('../../../lib/agent/promptTemplates');
 const { isLLMReady, getLLMInfo } = require('../../../lib/agent/brain');
 const { gatherIntelligence } = require('../../../lib/agent/eyes');
+const { backtestStrategy, backtestAll } = require('../../../lib/agent/backtest');
+const { getApiHealth } = require('../../../lib/quotes');
+const { sseService } = require('../../../lib/sse');
 
 // ── 配置 ──
 
@@ -81,10 +84,10 @@ router.post('/agent/signal', async (req, res) => {
     if (result.error) return res.json({ success: false, error: result.error });
 
     // Level 2+ 自动创建方案
-    if (breaker.currentLevel >= 2 && result.signal && result.signal.action !== 'HOLD' && result.signal.action !== '观望') {
+    if (breaker.currentLevel >= 2 && result.signal && result.signal.action !== '观望') {
       const proposal = createProposal(result.signal);
       // Level 3 自动执行
-      if (breaker.currentLevel === 3 && proposal) {
+      if (breaker.currentLevel === 3 && proposal && proposal.status !== 'rejected') {
         const threshold = getStrategy(config.strategyId)?.confidenceThreshold || 0.7;
         if (result.signal.confidence >= threshold) {
           await executeProposal(proposal.id, true);
@@ -153,6 +156,71 @@ router.get('/agent/risk', (req, res) => {
 router.get('/agent/log', (req, res) => {
   const limit = parseInt(req.query.limit) || 50;
   res.json({ success: true, log: getDecisionLog().slice(0, limit) });
+});
+
+// ── 回测 v3 ──
+
+router.get('/agent/backtest', (req, res) => {
+  const { strategyId, period } = req.query;
+  try {
+    if (strategyId) {
+      const result = backtestStrategy(strategyId, { period: period || 'all' });
+      res.json({ success: true, result });
+    } else {
+      const results = backtestAll({ period: period || 'all' });
+      res.json({ success: true, results });
+    }
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// ── API 健康面板 v3 ──
+
+router.get('/agent/health', (req, res) => {
+  const apiHealth = getApiHealth();
+  const sseStatus = sseService.getStatus();
+  const llmInfo = getLLMInfo();
+
+  res.json({
+    success: true,
+    apis: apiHealth,
+    sse: sseStatus,
+    llm: {
+      ready: isLLMReady(),
+      provider: llmInfo.provider,
+      model: llmInfo.model,
+      reasoner: llmInfo.reasoner,
+    },
+    search: {
+      configured: !!(process.env.SEARCH_API_KEY),
+      provider: process.env.SEARCH_API_URL ? 'tavily' : 'none',
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ── 日报 ──
+
+router.get('/agent/daily-report', (req, res) => {
+  const config = getAgentConfig();
+  const breakerStatus = breaker.getStatus();
+  const riskStatus = riskManager.getStatus();
+  const signals = getSignals(10);
+  const proposals = getProposals();
+  const log = getDecisionLog().slice(0, 20);
+
+  res.json({
+    success: true,
+    date: new Date().toISOString().slice(0, 10),
+    agent: config,
+    circuitBreaker: breakerStatus,
+    risk: riskStatus,
+    recentSignals: signals.length,
+    pendingProposals: proposals.filter(p => p.status === 'pending').length,
+    executedProposals: proposals.filter(p => p.status === 'executed').length,
+    log,
+  });
 });
 
 module.exports = router;

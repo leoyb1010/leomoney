@@ -1,7 +1,8 @@
 /* ============================================
- * Leomoney 基础组件样式
- * v1.3.0 — 面板/卡片/按钮/状态/表单/列表
+ * Leomoney 基础组件样式 v3
+ * 面板/卡片/按钮/状态/表单/列表/加载
  * 依赖 tokens.css
+ * 红涨绿跌（中国A股惯例）
  * ============================================ */
 
 /* ── 面板 ── */
@@ -31,11 +32,31 @@
   border: 1px solid var(--边框-默认);
   border-radius: var(--圆角-中);
   padding: var(--间距-4);
-  transition: border-color var(--动效-快);
+  transition: all var(--动效-标准);
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--渐变-品牌);
+  opacity: 0;
+  transition: opacity var(--动效-快);
 }
 
 .metric-card:hover {
   border-color: var(--边框-强调);
+  transform: translateY(-2px);
+  box-shadow: var(--发光-品牌);
+}
+
+.metric-card:hover::before {
+  opacity: 1;
 }
 
 .metric-label {
@@ -50,9 +71,10 @@
   font-size: var(--字号-标题);
   font-weight: var(--字重-极粗);
   font-family: var(--字体-等宽);
-  line-height: 1.2;
+  line-height: var(--行高-紧凑);
 }
 
+/* 红涨绿跌 */
 .metric-value.positive { color: var(--颜色-买入); }
 .metric-value.negative { color: var(--颜色-卖出); }
 .metric-value.neutral  { color: var(--文字-主); }
@@ -64,7 +86,7 @@
   font-family: var(--字体-等宽);
 }
 
-/* ── 操作按钮 ── */
+/* ── 操作按钮 v3 ── */
 .action-button {
   border: none;
   border-radius: var(--圆角-中);
@@ -73,8 +95,10 @@
   font-weight: var(--字重-粗体);
   font-family: var(--字体-正文);
   cursor: pointer;
-  transition: transform var(--动效-快), opacity var(--动效-快), background var(--动效-快);
+  transition: transform var(--动效-快), opacity var(--动效-快), background var(--动效-快), box-shadow var(--动效-快);
   letter-spacing: 0.02em;
+  position: relative;
+  overflow: hidden;
 }
 
 .action-button:hover {
@@ -82,7 +106,7 @@
 }
 
 .action-button:active {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.98);
 }
 
 .action-button:disabled {
@@ -92,21 +116,21 @@
 }
 
 .action-button.buy {
-  background: var(--颜色-买入);
+  background: var(--渐变-买入);
   color: #fff;
 }
 
 .action-button.buy:hover:not(:disabled) {
-  background: #059669;
+  box-shadow: var(--发光-买入);
 }
 
 .action-button.sell {
-  background: var(--颜色-卖出);
+  background: var(--渐变-卖出);
   color: #fff;
 }
 
 .action-button.sell:hover:not(:disabled) {
-  background: #dc2626;
+  box-shadow: var(--发光-卖出);
 }
 
 .action-button.secondary {
@@ -127,6 +151,7 @@
 
 .action-button.order:hover:not(:disabled) {
   background: #2563eb;
+  box-shadow: var(--发光-信息);
 }
 
 /* ── 数据行 ── */
@@ -154,7 +179,7 @@
   color: var(--文字-主);
 }
 
-/* ── 标签 ── */
+/* ── 标签（红涨绿跌） ── */
 .tag {
   display: inline-flex;
   align-items: center;
@@ -210,11 +235,12 @@
   font-family: var(--字体-等宽);
   font-size: var(--字号-大);
   outline: none;
-  transition: border-color var(--动效-快);
+  transition: border-color var(--动效-快), box-shadow var(--动效-快);
 }
 
 .form-field-input:focus {
   border-color: var(--颜色-信息);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
 .form-field-input[readonly] {
@@ -334,7 +360,7 @@
   border-bottom: none;
 }
 
-/* ── 系统消息容器 ── */
+/* ── 系统消息容器 v3 ── */
 .system-feedback {
   position: fixed;
   top: 70px;
@@ -342,11 +368,13 @@
   padding: var(--间距-3) var(--间距-5);
   border-radius: var(--圆角-中);
   font-weight: var(--字重-粗体);
-  z-index: 200;
+  z-index: var(--层级-通知);
   transform: translateX(120%);
-  transition: transform var(--动效-标准);
+  transition: transform var(--动效-缓出);
   max-width: 360px;
   font-size: var(--字号-中);
+  backdrop-filter: var(--玻璃-模糊);
+  -webkit-backdrop-filter: var(--玻璃-模糊);
 }
 
 .system-feedback.show {
@@ -354,21 +382,51 @@
 }
 
 .system-feedback.success {
-  background: var(--颜色-买入);
+  background: rgba(239, 68, 68, 0.9); /* 红=好=买入成功 */
   color: #fff;
 }
 
 .system-feedback.error {
-  background: var(--颜色-卖出);
+  background: rgba(16, 185, 129, 0.9); /* 绿=不好=卖出/亏损 */
   color: #fff;
 }
 
 .system-feedback.info {
-  background: var(--颜色-信息);
+  background: rgba(59, 130, 246, 0.9);
   color: #fff;
 }
 
 .system-feedback.warning {
-  background: var(--颜色-警告);
+  background: rgba(245, 158, 11, 0.9);
   color: #fff;
+}
+
+/* ── 加载骨架屏 ── */
+.skeleton {
+  background: linear-gradient(90deg, var(--背景-输入) 25%, var(--背景-卡片) 50%, var(--背景-输入) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--圆角-中);
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ── 脉冲指示器 ── */
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.pulse-dot.green { background: var(--颜色-卖出); box-shadow: 0 0 8px var(--颜色-卖出); }
+.pulse-dot.red { background: var(--颜色-买入); box-shadow: 0 0 8px var(--颜色-买入); }
+.pulse-dot.yellow { background: var(--颜色-警告); box-shadow: 0 0 8px var(--颜色-警告); }
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
 }
