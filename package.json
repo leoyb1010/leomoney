@@ -6,13 +6,16 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "cli": "node cli.js"
+    "cli": "node cli.js",
+    "check": "node --check server.js && node --test \"src/server/domain/__tests__/*.test.js\"",
+    "find:mojibake": "node scripts/find-mojibake.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
     "decimal.js": "^10.6.0",
     "dotenv": "^17.4.2",
     "express": "^4.22.1",
-    "iconv-lite": "^0.7.2"
+    "iconv-lite": "^0.7.2",
+    "zod": "^4.3.6"
   }
 }

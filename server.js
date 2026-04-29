@@ -16,6 +16,7 @@ const accountRoutes = require('./src/server/routes/accountRoutes');
 const tradeRoutes = require('./src/server/routes/tradeRoutes');
 const analysisRoutes = require('./src/server/routes/analysisRoutes');
 const agentRoutes = require('./src/server/routes/agentRoutes');
+const systemRoutes = require('./src/server/routes/systemRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3210;
@@ -29,6 +30,7 @@ app.use('/api', accountRoutes);
 app.use('/api', tradeRoutes);
 app.use('/api', analysisRoutes);
 app.use('/api', agentRoutes);
+app.use('/api', systemRoutes);
 
 // SSE 实时推送
 const { sseService } = require('./lib/sse');

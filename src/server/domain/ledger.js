@@ -112,7 +112,7 @@ function releasePosition(account, symbol, qty, reason = '') {
  * @returns {Object} 结算结果
  */
 function settleBuyFill(account, fill) {
-  const { symbol, name, price, qty, category = 'astocks', orderId } = fill;
+  const { symbol, name, price, qty, category = 'astocks', orderId, meta = {} } = fill;
 
   _ensureCashStructure(account);
   _ensurePositionStructure(account, symbol);
@@ -149,6 +149,7 @@ function settleBuyFill(account, fill) {
     total: toMoney(totalAmount), fee, time: new Date().toISOString(),
     category, unit, orderId,
     settlementType: 'LEDGER_SETTLED',
+    ...meta,
   });
 
   account.updatedAt = new Date().toISOString();
@@ -165,7 +166,7 @@ function settleBuyFill(account, fill) {
  * @returns {Object} 结算结果
  */
 function settleSellFill(account, fill) {
-  const { symbol, name, price, qty, category = 'astocks', orderId } = fill;
+  const { symbol, name, price, qty, category = 'astocks', orderId, meta = {} } = fill;
 
   _ensureCashStructure(account);
 
@@ -222,6 +223,7 @@ function settleSellFill(account, fill) {
     costBasis: toMoney(costBasis), time: new Date().toISOString(),
     category, unit, orderId,
     settlementType: 'LEDGER_SETTLED',
+    ...meta,
   });
 
   account.updatedAt = new Date().toISOString();

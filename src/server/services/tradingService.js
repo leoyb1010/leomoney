@@ -68,6 +68,7 @@ async function buy(stockQuote, qty, limitPrice = null) {
         qty,
         category,
         orderId: null,
+        meta: buildTradeMeta(stockQuote),
       });
 
       // 释放多余的冻结（预留 vs 实际费用差）
@@ -132,6 +133,7 @@ async function sell(stockQuote, qty, limitPrice = null) {
         qty,
         category,
         orderId: null,
+        meta: buildTradeMeta(stockQuote),
       });
 
       return {

@@ -29,6 +29,7 @@ class DomainEventBus extends EventEmitter {
   constructor() {
     super();
     this.events = [];
+    this.sequence = 0;
     this.maxMemoryEvents = 1000;
     this.persistDir = path.join(__dirname, '../../../data/events');
     this._ensureDir();
@@ -46,6 +47,7 @@ class DomainEventBus extends EventEmitter {
       type: eventName,
       payload,
       timestamp: new Date().toISOString(),
+      sequence: ++this.sequence,
     };
 
     // 内存缓存
@@ -81,7 +83,11 @@ class DomainEventBus extends EventEmitter {
     return this.events.filter(e =>
       e.payload?.orderId === orderId ||
       e.payload?.id === orderId
-    ).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    ).sort((a, b) => {
+      const byTime = b.timestamp.localeCompare(a.timestamp);
+      if (byTime !== 0) return byTime;
+      return (b.sequence || 0) - (a.sequence || 0);
+    });
   }
 }
 
