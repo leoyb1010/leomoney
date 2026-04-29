@@ -1,501 +1,263 @@
-# 🦁 Leomoney
+# LeoMoney
 
-AI-Driven Simulated Trading Platform | AI 驱动模拟交易平台
+LeoMoney 是一套面向个人投资者和量化研究者的 AI-Native 模拟交易系统。当前版本已经升级为中文交易指挥舱：覆盖实时行情、K 线、模拟交易、多账户、Agent 风控、自动化执行闸门、审计日志和决策回放。
 
-![Leomoney Screenshot](screenshot.png)
+> 重要提示：本项目用于模拟交易、策略研究和自动化实验，不构成投资建议，也不应直接替代真实交易风控。
 
-## Features
+![LeoMoney Screenshot](screenshot.png)
 
-- 👤 **多账户平台** — 创建/切换/删除账户，资金/持仓/自选/条件单/复盘完全隔离
-- 🏠 **Dashboard 总览** — 总资产/资金/持仓/KPI + 市场动态 + 关注标的 + 最近成交
-- 📋 **条件单管理** — 独立订单页，统计待触发/已执行/失败，完整生命周期管理
-- 📊 **全市场行情** — A股/港股/美股/贵金属/加密货币实时数据（新浪财经 API）
-- 🔍 **全市场搜索** — 东方财富搜索 API，支持股票/基金/ETF 全品种检索
-- 📈 **K线图** — LightweightCharts v4 专业K线图，支持1分/5分/15分/30分/日线多周期切换
-- 💰 **模拟交易** — 买入/卖出，100 万虚拟资金起步
-- 📊 **资产净值曲线** — Dashboard 净值走势图，支持7天/30天/90天/全部切换
-- 🥧 **持仓分布可视化** — 饼图+盈亏条形图，一目了然
-- 🕐 **市场状态** — 自动检测 A股/港股/美股/加密交易时段，休市行情冻结
-- 🧠 **交易分析** — 胜率/盈亏比/最大回撤/策略统计（按账户隔离）
-- 🤖 **Agent 自动交易** — 三级安全模式（监控/顾问/代理）+ 熔断器v3自动恢复 + 风控引擎v3真实PnL + 多策略 + 认知闭环（观察→分析→决策→执行）
-- 📡 **SSE 实时推送** — 行情/Agent信号/交易通知/系统状态实时推送到前端
-- 🔄 **多策略回测** — 按策略对比回测（胜率/盈亏比/最大回撤/夏普比率）
-- 🏷️ **策略标签** — 交易记录支持 strategy 字段，按策略统计表现
-- 🏥 **API 健康面板** — 实时监控新浪/东财 API 状态、延迟、可用率
-- 📱 **移动端适配** — 底部 Tab Bar + 响应式布局
-- 🔴🟢 **红涨绿跌** — 中国A股惯例配色系统
-- 🛡️ **数据安全** — 原子写入+写入校验 + 3级自动备份 + 启动完整性检查 + API多源容灾
+## 当前版本
 
-## Tech Stack
+- 版本：`v3.0.0`
+- 默认端口：`3210`
+- 主入口：`server.js`
+- 前端入口：`public/index.html`
+- 数据目录：`data/`，已加入 `.gitignore`
+- 支持市场：A 股、港股、美股、贵金属、加密资产、主要指数
 
-- **Backend**: Node.js + Express（路由层 / services 层 / repositories 层 / domain 层四层分离）
-- **Frontend**: 纯原生 HTML/CSS/JS，模块化架构（main.js 统一入口 + features/ 功能域模块）
-- **Data**: 新浪财经 + 东方财富 API（免费，无需 API Key）
-- **AI**: DeepSeek / Qwen / OpenAI / Ollama 多 LLM Provider 支持
-- **持久化**: JSON 文件（`data/state.json`，多账户容器格式，旧版自动迁移）
+## 核心能力
 
-## Quick Start
+- 中文交易终端：深色高信息密度界面，左侧专业导航，顶部账户与风控状态，主区行情/K 线/持仓/交易，右侧 Agent 与审计流。
+- 实时行情：聚合新浪财经、东方财富等免费数据源，支持指数、A 股、港股、美股、贵金属和加密资产。
+- 专业 K 线：新增 `/api/kline/:symbol` 接口，优先拉取新浪分钟线，失败时使用可审计的降级数据。
+- 多账户系统：账户之间资金、持仓、订单、统计相互隔离，支持切换、创建、归档和重置。
+- 模拟交易内核：买入、卖出、冻结资金、冻结持仓、部分成交、订单状态机、FIFO 成本、持仓盈亏。
+- Agent 自动化总线：手动触发、条件触发、计划任务、Agent 信号、回测事件都进入统一自动化流水线。
+- ExecutionGate 执行闸门：LLM 或规则不能直接下单，必须通过 Schema、规则、熔断器、风控、审计后才可执行。
+- 审计与回放：每次自动化运行都会写入审计事件，可通过 runId 回放触发、上下文、决策、风控和执行结果。
+- SSE 实时推送：行情、Agent、交易通知和系统状态可实时推送到前端。
+- 安全降级：LLM 不可用、行情异常、风控拒绝、熔断开启时自动进入 HOLD 或 dry-run 状态。
+
+## 快速启动
 
 ```bash
 npm install
 npm start
 ```
 
-打开 http://localhost:3210
+打开：
 
-### Agent 模式配置（可选）
+```text
+http://localhost:3210
+```
 
-Agent 功能需要 LLM API Key 才能激活：
+健康检查：
 
 ```bash
-# DeepSeek（默认）
+curl http://localhost:3210/api/health
+```
+
+行情检查：
+
+```bash
+curl http://localhost:3210/api/quotes
+curl "http://localhost:3210/api/kline/sh000001?scale=5&limit=80"
+```
+
+## 常用脚本
+
+```bash
+npm start              # 启动 Web 服务
+npm run dev            # 同 npm start
+npm run check          # 语法检查 + 后端领域测试
+npm run find:mojibake  # 扫描乱码文案
+node cli.js --help     # 查看 CLI 能力
+```
+
+## Agent 配置
+
+Agent 能力需要配置 LLM API Key。没有配置时，系统仍可运行交易终端、行情、模拟交易、审计和规则自动化；LLM 相关能力会显示为未就绪。
+
+DeepSeek 示例：
+
+```bash
+set LLM_PROVIDER=deepseek
+set LLM_API_KEY=your-api-key
+set LLM_MODEL=deepseek-chat
+npm start
+```
+
+OpenAI 示例：
+
+```bash
+set LLM_PROVIDER=openai
+set LLM_API_KEY=sk-your-key
+npm start
+```
+
+Linux/macOS 使用：
+
+```bash
 export LLM_PROVIDER=deepseek
 export LLM_API_KEY=your-api-key
-export LLM_MODEL=deepseek-chat  # 可选，覆盖默认模型
-
-# 或 OpenAI
-export LLM_PROVIDER=openai
-export LLM_API_KEY=sk-xxx
-
-# 搜索引擎（可选，增强信息采集）
-export SEARCH_API_URL=https://your-search-api
-export SEARCH_API_KEY=your-search-key
+npm start
 ```
 
-## CLI
+## 自动化执行链路
+
+LeoMoney VNext 的自动化不允许绕过交易内核。所有自动决策都走同一条流水线：
+
+```text
+Trigger
+  -> ContextBuilder
+  -> RuleEngine / AgentDecision
+  -> DecisionSchema
+  -> ExecutionGate
+  -> RiskManager
+  -> CircuitBreaker
+  -> TradingService
+  -> AuditLog
+  -> Replay
+```
+
+执行模式：
+
+| 模式 | 说明 |
+| --- | --- |
+| `dry_run` | 只生成方案、风控和审计，不真实写入交易 |
+| `paper_execution` | 通过风控后执行模拟交易 |
+
+示例：
 
 ```bash
-# 查看行情
-node cli.js quote 600519
-
-# 全市场搜索
-node cli.js search 茅台
-
-# 买入/卖出
-node cli.js buy 600519 100 1800
-node cli.js sell 600519 100 1900
-
-# 查看持仓
-node cli.js portfolio
-
-# OpenClaw 自动化指南
-node cli.js auto
+curl -X POST http://localhost:3210/api/automation/run \
+  -H "Content-Type: application/json" \
+  -d "{\"symbol\":\"600519\",\"mode\":\"dry_run\"}"
 ```
 
-## OpenClaw Integration
+查看审计：
 
-三种接入方式：
-
-1. **CLI 直调** — `node cli.js <command>` （无需启动服务器）
-2. **REST API** — `http://localhost:3210/api/*` （需先 `node server.js`）
-3. **定时 Cron** — 周期性拉行情 + 条件单检查
-
-详细指南：`node cli.js auto`
-
----
-
-## 🤖 Agent 自动交易系统
-
-### 三级运行模式
-
-| Level | 名称 | 行为 | 风控 |
-|-------|------|------|------|
-| **L1** | 监控者 | 只看不动手，推送信号到控制台 | 无执行能力 |
-| **L2** | 顾问者 | 生成交易方案，需人工确认后执行 | 基础仓位检查 |
-| **L3** | 代理者 | 置信度 ≥ 阈值时自动执行交易 | 严格检查：置信度≥70%、风险≠高、日交易≤10、时段限制、自动止损3%/止盈8% |
-
-### 熔断机制
-
-| 触发条件 | 动作 | 恢复 |
-|----------|------|------|
-| 单笔亏损 > 3% | 熔断，降一级 | 冷却 4h 后试探恢复 |
-| 连续 3 次亏损 | 熔断，降一级 | 冷却 4h 后试探恢复 |
-| 日亏损 > 5% | 熔断，降一级 | 冷却 4h 后试探恢复 |
-| 熔断器 OPEN → HALF_OPEN | 试探期允许 1 笔交易 | 成功则 CLOSED，失败则回 OPEN |
-
-### 预设策略
-
-| 策略 | 风格 | 适合场景 |
-|------|------|----------|
-| 🛡️ 保守策略 | 低仓位(10%)、严止损(2%)、高置信度(85%) | 震荡市、新手 |
-| ⚖️ 均衡策略 | 中仓位(20%)、标准止损(3%)、中置信度(75%) | 通用 |
-| 🔥 激进策略 | 高仓位(30%)、宽止损(5%)、低置信度(65%) | 趋势明确、进取型 |
-| 📈 动量策略 | 追涨杀跌、均线突破 | 强趋势市场 |
-| 📰 事件驱动 | 财报/政策/新闻事件 | 重大事件窗口 |
-
-支持自定义策略 Prompt，注入实时行情/新闻/持仓数据。
-
-### 风控引擎
-
-- **仓位限制**：单笔最大 20%，总仓位上限 70%
-- **亏损限制**：日亏损上限 5%
-- **时段限制**：仅 A 股交易时段（09:30-11:30, 13:00-15:00）
-- **自动止损止盈**：每笔自动交易附带止损 3% / 止盈 8% 条件单
-- **交易频率**：日交易上限 10 笔
-
-### Agent API
-
-#### 配置管理
-
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/agent/config` | GET | 获取 Agent 配置（等级/状态/策略/风控参数） |
-| `/api/agent/config` | PATCH | 更新配置（level, enabled, strategy 等） |
-| `/api/agent/status` | GET | 获取运行状态（LLM/Agent/熔断器/风控） |
-
-#### 策略管理
-
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/agent/strategies` | GET | 获取所有策略列表（预设+自定义） |
-| `/api/agent/strategies/custom` | POST | 创建自定义策略 |
-
-#### 信号 & 方案
-
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/agent/signal` | POST | 手动生成信号（传入 symbol） |
-| `/api/agent/signals` | GET | 获取信号列表 |
-| `/api/agent/proposals` | GET | 获取方案列表 |
-| `/api/agent/proposals/:id/approve` | POST | 批准方案（L2 模式） |
-| `/api/agent/proposals/:id/reject` | POST | 拒绝方案 |
-| `/api/agent/proposals/:id/execute` | POST | 手动执行方案 |
-
-#### 安全控制
-
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/agent/circuit-breaker` | GET | 获取熔断器状态 |
-| `/api/agent/circuit-breaker/reset` | POST | 重置熔断器 |
-| `/api/agent/risk` | GET | 获取风控状态 |
-| `/api/agent/risk` | PATCH | 更新风控参数 |
-| `/api/agent/daily-report` | GET | 获取今日交易报告 |
-
-#### 分析 & 决策（旧接口，兼容保留）
-
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/analysis` | GET | 交易分析（当前账户） |
-| `/api/agent/prompt` | GET | 获取 Agent 决策提示词 |
-| `/api/agent/decision-input` | POST | 生成 Agent 决策输入数据 |
-
-### 账户管理 API
-
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/accounts` | GET | 获取账户列表及当前账户 ID |
-| `/api/accounts` | POST | 创建新账户（name, balance, color） |
-| `/api/accounts/:id/switch` | POST | 切换当前账户 |
-| `/api/accounts/:id` | PATCH | 更新账户信息 |
-| `/api/accounts/:id` | DELETE | 归档账户（软删除） |
-| `/api/account/reset` | POST | 重置当前账户（不影响其他账户） |
-
-Agent 输出格式：
-```json
-{
-  "action": "买入 | 卖出 | 观望",
-  "仓位比例": 0.3,
-  "置信度": 0.7,
-  "原因": "趋势明确，突破前高",
-  "风险等级": "低 | 中 | 高"
-}
+```bash
+curl "http://localhost:3210/api/audit/events?limit=20"
+curl "http://localhost:3210/api/replay/run_xxx"
 ```
 
-## Project Structure
+## 主要 API
 
-```
+### 系统
+
+| 接口 | 方法 | 说明 |
+| --- | --- | --- |
+| `/api/health` | GET | 系统健康、市场状态、Agent、风控、SSE、审计状态 |
+| `/api/vnext/status` | GET | VNext 能力清单 |
+
+### 行情
+
+| 接口 | 方法 | 说明 |
+| --- | --- | --- |
+| `/api/quotes` | GET | 全市场行情 |
+| `/api/quote/:symbol` | GET | 单资产行情 |
+| `/api/search?q=茅台` | GET | 搜索资产 |
+| `/api/kline/:symbol` | GET | K 线数据，支持 `scale` 和 `limit` |
+
+### 账户与交易
+
+| 接口 | 方法 | 说明 |
+| --- | --- | --- |
+| `/api/accounts` | GET/POST | 账户列表、创建账户 |
+| `/api/accounts/:id/switch` | POST | 切换账户 |
+| `/api/account` | GET | 当前账户资产、持仓、订单 |
+| `/api/buy` | POST | 模拟买入 |
+| `/api/sell` | POST | 模拟卖出 |
+| `/api/orders` | GET | 订单列表 |
+
+### Agent 与风控
+
+| 接口 | 方法 | 说明 |
+| --- | --- | --- |
+| `/api/agent/status` | GET | Agent 运行状态 |
+| `/api/agent/config` | GET/PATCH | Agent 配置 |
+| `/api/agent/signal` | POST | 生成 Agent 信号 |
+| `/api/agent/proposals` | GET | 交易方案 |
+| `/api/agent/circuit-breaker` | GET | 熔断器状态 |
+| `/api/agent/risk` | GET/PATCH | 风控参数 |
+
+### 自动化与审计
+
+| 接口 | 方法 | 说明 |
+| --- | --- | --- |
+| `/api/automation/run` | POST | 触发自动化流水线 |
+| `/api/audit/events` | GET | 审计事件列表 |
+| `/api/replay/:runId` | GET | 自动化运行回放 |
+
+## 项目结构
+
+```text
 leomoney/
-├── server.js                 # Express 服务入口（轻路由层）
-├── cli.js                    # 命令行工具（OpenClaw 可直接调用）
-├── lib/
-│   ├── quotes.js             # 行情数据（新浪+东方财富）
-│   ├── trading.js            # 交易引擎（兼容层，逐步迁移到 services）
-│   ├── market.js             # 市场状态检测
-│   ├── fx.js                 # 汇率层
-│   ├── scheduler.js          # 后台调度器 v2（条件单+信号+策略+熔断）+ 多账户隔离
-│   └── agent/
-│       ├── brain.js          # LLM 多 Provider 调用（DeepSeek/Qwen/OpenAI/Ollama）
-│       ├── eyes.js           # 信息采集（东财新闻+通用搜索）
-│       ├── executor.js       # 决策执行（只读分析+风控门控+止损挂单）
-│       ├── circuitBreaker.js # 熔断器（三态状态机+降级+多账户隔离）
-│       ├── riskManager.js    # 风控引擎（仓位/亏损/时段+止损止盈+多账户隔离）
-│       ├── promptTemplates.js# 策略模板（5 预设+自定义 Prompt）
-│       └── signalEngine.js   # 信号引擎（采集→LLM→信号→方案→执行+多账户隔离）
-├── src/
-│   ├── server/
-│   │   ├── routes/           # 路由层（market/account/trade/analysis+agent）
-│   │   ├── services/         # 服务层（account/trading/order/watchlist/summary）
-│   │   ├── repositories/     # 持久化层（stateRepository）
-│   │   └── domain/            # 领域模型（models.js）
-│   └── analytics/
-│       ├── tradeEngine.js     # 分析总入口 + Agent 决策
-│       ├── position.js        # 持仓计算（FIFO 成本）
-│       └── metrics.js         # 指标计算（胜率/回撤/策略统计）
-├── public/
-│   ├── index.html             # 主页面（无内联事件）
-│   ├── css/                   # 样式（tokens/components/app）
-│   └── js/
-│       ├── main.js            # 前端统一入口（事件绑定 + 初始化）
-│       ├── app.js             # 兼容壳（15 行）
-│       └── features/          # 功能模块
-│           ├── market.js      # 行情视图
-│           ├── trade.js       # 交易视图
-│           ├── portfolio.js   # 资产视图
-│           ├── dashboard.js   # Dashboard 总览
-│           ├── analysis.js    # 复盘视图
-│           └── agent.js       # 🤖 Agent 控制台（新增）
-├── data/                      # 运行时数据（gitignore）
-└── package.json
+├─ server.js                         # Express 服务入口
+├─ cli.js                            # 命令行工具
+├─ lib/
+│  ├─ quotes.js                      # 行情数据源
+│  ├─ market.js                      # 市场状态
+│  ├─ trading.js                     # 兼容交易入口
+│  ├─ scheduler.js                   # 后台调度
+│  └─ agent/                         # Agent、熔断器、风控、信号
+├─ public/
+│  └─ index.html                     # 中文交易指挥舱
+├─ scripts/
+│  └─ find-mojibake.js               # 乱码扫描
+├─ src/
+│  ├─ analytics/                     # 指标、持仓、交易分析
+│  └─ server/
+│     ├─ audit/                      # 审计日志与回放
+│     ├─ automation/                 # 自动化总线与执行闸门
+│     ├─ domain/                     # 金额、订单、事件、账户领域模型
+│     ├─ repositories/               # JSON 原子持久化
+│     ├─ routes/                     # API 路由
+│     └─ services/                   # 账户、交易、订单、结算、风控服务
+└─ data/                             # 运行时数据，不提交 Git
 ```
 
----
+## 测试与验证
 
-## Changelog
+```bash
+npm run check
+```
 
-### v3.0.0 — 2026-04-26
+当前远端 main 已验证：
 
-**🦁 三代跨越升级 — 可靠性 + 专业UX + 智能化**
+- 依赖安装成功
+- `npm audit` 0 个漏洞
+- 语法检查通过
+- 后端领域测试 48/48 通过
+- `/api/health` 返回 200
+- `/api/quotes` 返回 39 个资产
+- `/api/kline/sh000001?scale=5&limit=80` 返回 240 个 K 线点
 
-#### v2.1 可靠性层
-- **熔断器 v3 自动恢复** — HALF_OPEN 试探成功自动升级 Level（渐进式恢复到原始 Level），冷却期 30 分钟自动进入试探，试探失败直接回到 OPEN
-- **风控引擎 v3 真实PnL** — 基于持仓实时浮亏动态止损（单持仓浮亏 5% / 总浮亏 8%），移动止损跟踪（从最高点回撤 2%），持仓集中度检查（单标的 30% 上限）
-- **Brain v3 Schema 校验 + 重试** — LLM 调用自动重试 2 次（指数退避），输出 Schema 预校验，调用失败安全降级为 HOLD
-- **stateRepository v3 增强** — 写入后文件大小校验 + JSON 解析验证 + 启动完整性检查增强（Schema 校验 + currentAccountId 修正）
-- **API 容灾 v3 增强** — 延迟追踪 + 可用率统计 + 慢请求标记 + 降级后直接跳过请求
+## 部署建议
 
-#### v2.2 专业UX层
-- **红涨绿跌** — 中国 A 股惯例配色系统全面修正（买入=红/卖出=绿），tokens.css + components.css + app.css 三层统一
-- **CSS 设计令牌 v3** — 新增层级变量（z-index/行高/响应式断点/脉冲指示器/骨架屏），渐变按钮发光效果
-- **组件系统 v3** — 指标卡顶部渐变线 + hover 上浮发光 + 表单焦点光圈 + 系统通知毛玻璃 + 骨架屏加载动画
+本机测试：
 
-#### v2.3 智能化层
-- **SSE 实时推送** — 行情(8s)/Agent信号/交易通知/系统状态(30s) 四频道推送，心跳保活，熔断器事件实时推送
-- **Agent 认知闭环** — Observation→Analysis→Decision→Execution 四阶段分离，每阶段独立输入/输出/校验/SSE广播
-- **多策略回测引擎** — 按策略对比回测（胜率/盈亏比/最大回撤/夏普比率/利润因子），支持 7d/30d/全时间窗口
-- **API 健康面板** — 实时监控 API 状态/延迟/可用率/SSE 连接数/LLM 配置
-- **20 个 API 端点** — 新增 /agent/backtest、/agent/health、/agent/daily-report、/sse
+```bash
+npm install
+npm start
+```
 
-### v2.0.1 — 2026-04-25
+服务器部署：
 
-**🔧 v2.0 后续修复**
+```bash
+git clone https://github.com/leoyb1010/leomoney.git
+cd leomoney
+npm ci
+PORT=3210 npm start
+```
 
-- **K线图高度限制** — 380px + max 45vh，防止撑爆视图
-- **LLM 模型升级** — 默认模型切换为 `deepseek-v4-pro`
-- **Agent 自动交易修复** — 16个 API 端点补注册到 Express（原全部 404）；配置持久化到 state.json；无持仓/自选时用热门标的兜底扫描；扫描间隔 300s→60s
+生产环境建议：
 
-### v2.0.0 — 2026-04-24
+- 使用 PM2、systemd 或 Docker 守护进程运行。
+- 将 `data/` 放到持久化磁盘。
+- 配置反向代理，例如 Nginx/Caddy。
+- 为公网启用 HTTPS。
+- 为 Agent API Key 使用环境变量，不要写入仓库。
 
-**🦁 全面视觉与工程升级 — v2.0 大版本**
+## 下一阶段路线
 
-#### 🔴 P1 核心可视化升级
-- **LightweightCharts K线图** — 替换原 Canvas 自绘，专业级K线图（十字线、缩放、拖拽），支持1分/5分/15分/30分/日线
-- **资产净值曲线** — Dashboard 新增净值走势面积图，7天/30天/90天/全部切换
-- **持仓分布可视化** — 环形饼图（市值占比）+ 盈亏横向条形图，资产视图顶部
-
-#### 🟠 P2 Agent 控制台 UI 重构
-- **状态卡片网格** — 主卡片（等级徽章+Agent状态+熔断器指示灯）+ 3个指标卡（LLM/今日交易/今日盈亏）
-- **信号时间轴** — 信号流改为时间轴样式（圆点+时间+内容卡片），买卖信号一目了然
-
-#### 🟡 P3 视觉系统升级
-- **Header 玻璃态** — backdrop-filter 毛玻璃效果
-- **渐变按钮** — 买入渐变绿→青、卖出渐变红→紫，hover 发光
-- **KPI 卡片悬停** — 上浮+品牌色阴影
-- **侧边栏激活态** — 左侧品牌色竖线+图标发光
-- **数字变化动效** — numberFlash 动画
-- **移动端适配** — 侧边栏变底部 Tab Bar，KPI 2列→1列，弹窗全屏
-
-#### 🟢 P4 工程健壮性
-- **原子写入** — state.json 先写临时文件再重命名，防崩溃致数据丢失
-- **3级自动备份** — 每次写入前轮转 backup.1→2→3，损坏时自动从备份恢复
-- **启动完整性检查** — server.js 启动验证 state.json JSON 合法性
-- **API 多源容灾** — 新浪/东方财富 API 健康追踪，连续3次失败自动降级，5分钟后恢复尝试
-- **API 状态指示器** — Header 显示数据源健康状态（绿/黄/红点）
-
-### v1.9.0 — 2026-04-24
-
-**🔒 上线前修复 — 安全/可靠性/架构全面加固**
-
-#### P0 安全修复
-- **测试基线**：5 个测试文件 60+ 断言从 `console.assert` → `node:test` + `node:assert/strict`，失败设非零退出码
-- **TLS 安全**：3 处硬编码 `rejectUnauthorized: false` → 环境变量 `TLS_REJECT_UNAUTHORIZED` 控制，默认 `true`
-
-#### P1 可靠性修复
-- **Analyze 只读语义**：`analyzeSingle()` 不再执行交易，只返回分析结果
-- **熔断器真实 PnL**：`breaker.recordTrade()` 注入真实 `pnl`/`pnlPct`，单笔/日亏损保护生效
-- **日亏损逻辑**：`dailyLossPct` 只累计亏损，盈利不再抵消
-- **风控计数**：`riskManager.recordTrade()` 成功+失败都计数
-- **SELL 方案数量**：卖出方案基于持仓 `sellableQty`，不再用 `cash.available`
-
-#### P2 架构升级
-- **多账户隔离**：5 个全局单例 → `Map<accountId, instance>` 隔离，Proxy 向后兼容
-- **Scheduler 监听器去重**：具名函数 + `.off()` 移除，防止重启累积
-- 新增环境变量：`TLS_REJECT_UNAUTHORIZED`（默认 true）
-
-### v1.8.0 — 2026-04-24
-
-**🔧 五阶段核心交易正确性重构**
-
-本次重构按 Phase 1→5 顺序完成，每阶段独立提交、独立测试、独立可运行。
-
-#### Phase 1 — P0 核心交易正确性
-- **Decimal 金额计算** (`src/server/domain/money.js`) — 消灭浮点误差，统一金额/数量/成本/盈亏计算
-- **订单状态机** (`src/server/domain/orderStateMachine.js`) — 10 状态 + 流转表，禁止非法状态跳转
-- **冻结/解冻账本** (`src/server/domain/ledger.js`) — 买单冻结现金（含手续费预留），卖单冻结持仓，撤单/结算失败自动回滚
-- **条件单修复** — 创建即冻结资源，触发只做状态流转，不再临时抢资源
-- **旧账户自动迁移** — balance→cash / holdings→positions
-
-#### Phase 2 — P1 Agent 决策链路可靠性
-- **Observation Builder** (`lib/agent/observationBuilder.js`) — 统一构建行情/账户/持仓/订单/风控/时段完整快照
-- **Schema 校验** (`lib/agent/schema.js`) — LLM 输出严格解析，非法 JSON/字段/动作 安全降级为 HOLD
-- **审计链** (`lib/agent/audit.js`) — observation→prompt→raw→parsed→risk→execution 完整链路持久化到 `data/audit/`
-- **执行链路修复** — 所有交易调用加 await，执行前重新读取账户状态 + 二次风控
-
-#### Phase 3 — P2 风控与异常处理
-- **硬风控服务** (`src/server/services/riskControlService.js`) — 12 项前置检查（单笔限额/仓位/日累计/禁买名单/价格跳变/空值保护/最低净值/挂单冲突等）
-- **持仓 FIFO 成本法** (`src/analytics/position.js`) — 超卖直接报错
-- **最大回撤修复** (`src/analytics/metrics.js`) — 基于权益曲线计算，新增手续费占比
-
-#### Phase 4 — P3 架构与回测可信度
-- **事件总线** (`src/server/domain/events.js`) — 15 种事件类型 + 内存缓存 + 文件持久化 + 订单生命周期追踪
-- **撮合服务** (`src/server/services/matchingService.js`) — 模拟盘即时撮合 / 回测 bar 撮合 / 限价+涨跌停检查
-- **结算服务** (`src/server/services/settlementService.js`) — 买入/卖出结算，事件发射
-- **回测时间语义** — t 时刻只能看到 t 及之前的数据
-
-#### Phase 5 — P4 UI/交互/可视化
-- **Header 余额** — 显示 可用/冻结/总资金
-- **持仓卡片** — 显示 总/可卖/冻结数量
-- **下单面板** — 实时显示预估手续费 + 预冻结金额，买入查可用资金，卖出查可卖数量
-- **Agent 方案卡** — 显示风控结果（level/reasons/machineCode）+ 执行结果
-
-测试覆盖：
-- Phase 1: 10 项测试（Decimal/状态机/冻结/结算/超卖/迁移/部分成交）
-- Phase 2: 8 项测试（schema 解析/降级/代码块/混合文本）
-- Phase 3: 7 项测试（FIFO/超卖/最大回撤/硬风控）
-- Phase 4: 7 项测试（事件流/撮合/结算/未来数据防护）
-- Phase 5: 4 项测试（结构适配/兼容/预估/风控显示）
-
-### v1.7.0 — 2026-04-23
-
-**🤖 Agent 自动交易系统 Level 1-3 全量上线**
-
-核心新增：
-
-- **熔断器** (`lib/agent/circuitBreaker.js`) — 三态状态机 (CLOSED → OPEN → HALF_OPEN)，自动降级 L3→L2→L1，事件通知机制
-- **风控引擎** (`lib/agent/riskManager.js`) — 仓位限制（单笔20%/总仓70%）、日亏损5%上限、交易时段检查、自动生成止损3%/止盈8%条件单
-- **策略模板** (`lib/agent/promptTemplates.js`) — 5个预设策略（保守/均衡/激进/动量/事件驱动）+ 自定义 Prompt 支持
-- **信号引擎** (`lib/agent/signalEngine.js`) — 信息采集 → LLM 分析 → 信号生成 → 交易方案 → 执行完整链路
-
-模块升级：
-
-- **调度器 v2** (`lib/scheduler.js`) — 三级调度（条件单30s + 信号扫描5min + 熔断监控60s）+ Agent 配置管理
-- **路由 v2** (`analysisRoutes.js`) — 新增 16 个 Agent API 端点（配置/策略/信号/方案/熔断/风控/日报）
-- **前端** — Agent 控制台视图（配置面板 + 信号流 + 方案卡 + 操作日志 + 安全控制），侧栏🤖入口
-
-三级安全模式：
-
-| Level | 行为 | 风控等级 |
-|-------|------|----------|
-| L1 监控者 | 只推送信号，不执行 | 无 |
-| L2 顾问者 | 生成方案，人工确认执行 | 基础检查 |
-| L3 代理者 | 自动执行（置信度≥70%、风险≠高） | 严格风控+自动止损止盈+熔断保护 |
-
-环境变量：
-
-- `LLM_PROVIDER` — 默认 deepseek，可选 qwen/openai/local
-- `LLM_API_KEY` — LLM API 密钥（**必须**）
-- `LLM_MODEL` — 覆盖默认模型（如 deepseek-v4-flash）
-- `SEARCH_API_URL` — 搜索引擎 API（可选，tavily 或 URL）
-- `SEARCH_API_KEY` — 搜索引擎密钥（可选）
-- `TLS_REJECT_UNAUTHORIZED` — TLS 证书校验（默认 true，设 false 仅用于开发）
-
-### v1.6.1 — 2026-04-23
-
-**交易核心修补 + 数据一致性收口**
-
-- 修复条件单创建接口字段语义错误，严格区分 `type=buy|sell` 与 `triggerType=gte|lte`
-- 条件单服务增加输入校验，拒绝无效订单类型、触发条件、价格和数量
-- 条件单执行兼容 `.SS/.HK/.US` 后缀 symbol 匹配，避免运行中订单因代码格式不同而永远不触发
-- 账户查询统一过滤 archived 账户，避免"已删除账户"继续参与切换和日常读取
-- 账户写操作改为串行 state transaction，降低 JSON 持久化并发覆盖风险
-- `todayRealizedPnL` 改为复用成交盈亏明细计算，不再错误读取当前剩余持仓均价
-- server 启动日志改为读取 `package.json` 版本，消除运行版本和 README/package 不一致
-- 移除行情请求中的 `rejectUnauthorized: false`，恢复默认 TLS 校验
-
-### v1.6.0 — 2026-04-22
-
-**架构重构 + Dashboard + 订单管理页**
-
-- 后端分层：server.js 重构为轻路由层，trading.js 拆分为 accountService/tradingService/orderService/watchlistService/summaryService，stateRepository 统一持久化层
-- 前端模块化：main.js 统一入口，features/ 接管所有业务逻辑，app.js 退化为 15 行兼容壳
-- index.html 去除所有内联 onclick/oninput，改为 JS 事件委托绑定
-- 新增 Dashboard 总览首页（KPI + 市场动态 + 关注标的 + 最近成交）
-- 新增独立订单管理页（条件单统计 + 生命周期管理 + 取消功能）
-- Sidebar 重整：总览 > 市场 > 交易 > 资产 > 订单 > 复盘
-- 修复条件单 API 参数名（triggerType/triggerPrice → 兼容 type/price）
-- 修复 getStockQuote symbol 归一化（.SS/.HK/.US 后缀匹配）
-- 切换账户后 Dashboard/Orders 同步刷新
-
-### v1.5.0 — 2026-04-22
-
-**👤 多账户平台化升级**
-
-- 底层存储从单账户 state 重构为 accounts 容器模型：`{ currentAccountId, accounts: { id: {...} } }`
-- 旧版单账户 state.json 自动迁移为"默认账户"，零人工干预
-- 新增账户管理 API：GET/POST/PATCH/DELETE /api/accounts，POST /accounts/:id/switch
-- 所有业务函数（buy/sell/createOrder/getWatchlist 等）改为基于 currentAccountId 操作
-- 条件单检查改为遍历所有账户独立触发，执行结果落回对应账户
-- 重置账户只影响当前账户，不再全局重置
-- 前端新增账户切换下拉（Header 右侧）：切换/新建/删除/颜色标签
-- 新增账户创建弹窗（名称+初始资金+主题色选择）
-- 新增账户删除确认弹窗，至少保留1个账户
-- 切换账户后全站数据同步刷新（资金/持仓/自选/条件单/复盘）
-- createAccount 支持 color 参数传递
-- 修复 server.js POST /api/accounts 参数解构错误
-
-### v1.4.0 — 2026-04-22
-
-**⭐ 自选系统 + 行情状态 + 交易规则 + 汇率感知**
-
-- 自选系统：watchlist CRUD + 热门/自选切换 + 当前标的加自选 + 空状态
-- 汇率层：lib/fx.js + toCNY + /api/fx + /api/account/summary 折算口径
-- 多市场交易规则：getCategoryRules() 按品类步进/单位
-- 行情状态可视化：市场检测 + 休市冻结提示
-- 建立统一设计 token 体系（tokens.css）
-- 建立基础组件样式库（components.css）
-- 前端模块化拆分：core/(api+events+store+constants) + utils/(format+guard+dom+date) + adapters/(market+portfolio+order) + presenters/(account+analytics)
-- 新增 `GET /api/account/summary`
-- 修复持仓口径不一致
-- Agent 友好：data-testid/data-role/data-symbol 全覆盖
-
-### v1.2.0 — 2026-04-21
-
-**🧠 交易分析 + Agent 决策层**
-
-- 新增 `src/analytics/` 分析层（position.js / metrics.js / tradeEngine.js）
-- FIFO 成本持仓计算 + 已实现盈亏明细
-- 交易指标：胜率、盈亏比、最大回撤、平均盈亏、按策略统计
-- Agent 决策：结构化提示词 + 决策输入生成 + 统一 JSON 输出格式
-- 新增 API：`GET /api/analysis`、`GET /api/agent/prompt`、`POST /api/agent/decision-input`
-- 前端新增「分析」页面
-
-### v1.1.0 — 2026-04-21
-
-**📈 K线交互 + 条件单 + 全市场搜索**
-
-- K线图 Canvas 绘制，鼠标悬停十字线 + 数据浮框
-- 条件单功能：价格触发自动买卖（≥/≤）
-- 全市场搜索（东方财富 API）
-- 市场状态自动检测
-
-### v1.0.0 — 2026-04-21
-
-**🦁 初始版本**
-
-- 全市场行情 + 模拟交易 + 持仓管理 + K线图
-- Node.js + Express 后端，纯原生前端
-- 新浪财经 + 东方财富免费 API
-- CLI 命令行工具 + JSON 文件持久化
+- SQLite WAL 数据层，替代 JSON 主存储。
+- React/TypeScript 前端拆分，保留当前中文指挥舱体验。
+- Agent DAG：Observe、Analyze、Critic、RiskOfficer、Proposal、ExecutionGate、MemoryWrite。
+- 事件驱动回测：手续费、滑点、T+1、涨跌停、冻结资金、成交失败。
+- 交易时光机：对任意 runId 回放完整市场上下文与 Agent 决策链。
 
 ## License
 
-MIT
+当前仓库未声明开源许可证。对外开源或商业化前建议补充明确 License。
