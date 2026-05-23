@@ -92,7 +92,7 @@ async function buildAccountSummary(getQuotes, getStockQuote, getAllRates) {
     .filter(t => t.time && t.time.startsWith(today))
     .reduce((sum, t) => add(sum, t.pnl || 0), 0);
 
-  return {
+  const summary = {
     success: true,
     accountId: account.accountId,
     baseCurrency: 'CNY',
@@ -109,6 +109,46 @@ async function buildAccountSummary(getQuotes, getStockQuote, getAllRates) {
     pendingOrders: account.pendingOrders || [],
     rates: getAllRates(),
   };
+  summary.analytics = buildPortfolioAnalyticsFromSummary(summary);
+  return summary;
 }
 
-module.exports = { buildAccountSummary };
+function buildPortfolioAnalyticsFromSummary(summary) {
+  const totalAssets = Number(summary.totalAssets || 0);
+  const holdingValue = Number(summary.holdingValue || 0);
+  const cashTotal = Number(summary.cash?.total || summary.balance || 0);
+  const holdings = Array.isArray(summary.holdings) ? summary.holdings : [];
+  const totalCostBasis = holdings.reduce((sum, item) => sum + Number(item.costBasisCNY || 0), 0);
+  const totalUnrealizedPnL = Number(summary.totalUnrealizedPnL || 0);
+  const largest = holdings.reduce((best, item) => {
+    const value = Number(item.marketValueCNY || 0);
+    if (!best || value > best.marketValueCNY) {
+      return {
+        symbol: item.symbol,
+        name: item.name,
+        marketValueCNY: value,
+        pctOfNav: totalAssets > 0 ? value / totalAssets * 100 : 0,
+      };
+    }
+    return best;
+  }, null);
+
+  return {
+    nav: toMoney(totalAssets),
+    exposurePct: totalAssets > 0 ? Number((holdingValue / totalAssets * 100).toFixed(2)) : 0,
+    cashPct: totalAssets > 0 ? Number((cashTotal / totalAssets * 100).toFixed(2)) : 0,
+    concentrationTop1Pct: largest ? Number(largest.pctOfNav.toFixed(2)) : 0,
+    largestPosition: largest,
+    totalCostBasis: toMoney(totalCostBasis),
+    totalUnrealizedPnL: toMoney(totalUnrealizedPnL),
+    totalUnrealizedPnLPct: totalCostBasis > 0 ? Number((totalUnrealizedPnL / totalCostBasis * 100).toFixed(2)) : 0,
+    dailySummary: {
+      date: new Date().toISOString().slice(0, 10),
+      realizedPnl: toMoney(summary.todayRealizedPnL || 0),
+      pendingOrders: (summary.pendingOrders || []).length,
+      holdingCount: holdings.length,
+    },
+  };
+}
+
+module.exports = { buildAccountSummary, buildPortfolioAnalyticsFromSummary };

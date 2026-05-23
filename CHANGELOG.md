@@ -1,5 +1,29 @@
 # Changelog
 
+## v3.1.0 (2026-05-23) — Commercial Beta hardening
+
+### Product readiness
+
+- Upgraded package and lockfile to `3.1.0`.
+- Added `/api/readiness` and `/api/version`; expanded `/api/health` with version channel, simulated-trading declaration, persistence state, backup status, audit status, CORS mode, security posture, LLM readiness and Agent execution policy.
+- Added portfolio analytics to account summary: NAV, exposure, cash ratio, Top1 concentration, unrealized PnL ratio and daily summary.
+- Updated the static command-center UI copy to identify the v3.1.0 commercial beta and simulated-trading safety boundary.
+
+### Safety, governance, and ops
+
+- Added `.env.example` with CORS, data directory, paper execution, Agent execution, order limit and LLM timeout/retry controls.
+- Added security middleware for request IDs, security headers, CORS origin allow-listing and JSON body limits.
+- Hardened trade, order, automation, Agent config and market-data request validation.
+- Routed legacy Agent proposal execution through `/api/automation/run`; direct Agent paper execution remains dry-run unless explicitly enabled.
+- Added audit events for trades and conditional order lifecycle events.
+- Added `scripts/secret-scan.js`, `npm run security:secrets`, `npm test`, improved `npm run check`, and GitHub Actions CI.
+
+### Tests
+
+- Added deterministic commercial-readiness tests for validation, order lot sizing, Agent execution policy and portfolio analytics.
+
+---
+
 ## v1.9.0 (2026-04-24) — 上线前修复版
 
 ### 🔒 P0 安全修复

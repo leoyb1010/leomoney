@@ -4,3 +4,5 @@ data/
 HANDOFF-*.md
 *.log
 .env
+.env.local
+.env.*.local

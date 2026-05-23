@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 const { getMarketStatus } = require('../../../lib/market');
 const { getQuotes, getStockQuote, searchSymbols, getApiHealth } = require('../../../lib/quotes');
+const { parseSymbol } = require('../validation');
 
 function buildFallbackKline(quote, count = 48) {
   const price = Number(quote.price || 0) || 1;
@@ -113,7 +114,9 @@ router.get('/quotes', async (req, res) => {
 
 router.get('/quotes/:symbol', async (req, res) => {
   try {
-    const quote = await findQuoteAny(req.params.symbol);
+    const parsed = parseSymbol(req.params.symbol);
+    if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.error });
+    const quote = await findQuoteAny(parsed.symbol);
     if (!quote) return res.status(404).json({ success: false, error: '未找到该资产' });
     res.json({ success: true, quote });
   } catch (err) {
@@ -123,18 +126,21 @@ router.get('/quotes/:symbol', async (req, res) => {
 
 router.get('/kline/:symbol', async (req, res) => {
   try {
-    const quote = await findQuoteAny(req.params.symbol);
+    const parsed = parseSymbol(req.params.symbol);
+    if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.error });
+    const quote = await findQuoteAny(parsed.symbol);
     if (!quote) return res.status(404).json({ success: false, error: '未找到该资产' });
-    const scale = Number(req.query.scale || 5);
+    const scale = [1, 5, 15, 30, 60].includes(Number(req.query.scale)) ? Number(req.query.scale) : 5;
+    const limit = Math.min(Math.max(Number(req.query.limit || 80), 20), 240);
     let points = null;
     let source = 'local_preview';
     try {
-      points = await fetchSinaMinuteKline(quote, scale, Number(req.query.limit || 80));
+      points = await fetchSinaMinuteKline(quote, scale, limit);
       if (points?.length) source = 'sina_minute';
     } catch {
       points = null;
     }
-    if (!points?.length) points = buildFallbackKline(quote, Number(req.query.limit || 60));
+    if (!points?.length) points = buildFallbackKline(quote, limit);
     res.json({
       success: true,
       symbol: quote.symbol || quote.code || quote.id || quote.sinaCode,

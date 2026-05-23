@@ -12,39 +12,57 @@ const { ORDER_STATUS, transitionOrder, mapLegacyStatus, isActiveStatus } = requi
 const { freezeCash, releaseCash, freezePosition, releasePosition, migrateAccountIfNeeded } = require('../domain/ledger');
 const { D, mul, gt, gte, lte, toMoney, toQty, calcBuyReserve, calcFee } = require('../domain/money');
 const { executeOrderFill } = require('./tradingService');
+const { SYMBOL_PATTERN } = require('../validation');
+const { getRuntimeConfig } = require('../config');
+const { recordAuditEvent } = require('../audit/auditLog');
 
 const VALID_SIDES = new Set(['buy', 'sell']);
 const VALID_TRIGGER_TYPES = new Set(['gte', 'lte']);
 
+function safeDecimal(value) {
+  try {
+    return D(value ?? 0);
+  } catch {
+    return null;
+  }
+}
+
 function normalizeOrderInput(order) {
+  const config = getRuntimeConfig();
   const normalizedSide = String(order.side || order.type || '').toLowerCase();
   const normalizedTriggerType = String(order.triggerType || '').toLowerCase();
-  const qty = Number(order.qty);
-  const triggerPrice = Number(order.triggerPrice);
+  const rawSymbol = String(order.symbol || '').trim();
+  const qty = safeDecimal(order.qty);
+  const triggerPrice = safeDecimal(order.triggerPrice);
 
-  if (!order.symbol) return { ok: false, error: '缺少参数: symbol' };
+  if (!rawSymbol) return { ok: false, error: '缺少参数: symbol' };
+  if (!SYMBOL_PATTERN.test(rawSymbol)) return { ok: false, error: 'symbol 格式无效' };
   if (!VALID_SIDES.has(normalizedSide)) return { ok: false, error: 'side 必须为 buy 或 sell' };
   if (!VALID_TRIGGER_TYPES.has(normalizedTriggerType)) return { ok: false, error: 'triggerType 必须为 gte 或 lte' };
-  if (!Number.isFinite(triggerPrice) || triggerPrice <= 0) return { ok: false, error: 'triggerPrice 必须大于 0' };
-  if (!Number.isFinite(qty) || qty <= 0) return { ok: false, error: 'qty 必须大于 0' };
+  if (!triggerPrice || !triggerPrice.isFinite() || triggerPrice.lte(0)) return { ok: false, error: 'triggerPrice 必须大于 0' };
+  if (!qty || !qty.isFinite() || qty.lte(0)) return { ok: false, error: 'qty 必须大于 0' };
+  const notional = qty.times(triggerPrice);
+  if (qty.gt(config.maxOrderQty)) return { ok: false, error: `qty 超过系统上限 ${config.maxOrderQty}` };
+  if (triggerPrice.gt(config.maxOrderPrice)) return { ok: false, error: `triggerPrice 超过系统上限 ${config.maxOrderPrice}` };
+  if (notional.gt(config.maxOrderNotionalCny)) return { ok: false, error: `订单名义金额超过系统上限 ${config.maxOrderNotionalCny}` };
 
   // 数量步进校验
   const category = order.category || 'astocks';
   const cfg = getMarketConfig(category);
-  if (cfg.multiple && qty % cfg.step !== 0) {
+  if (cfg.multiple && qty.mod(cfg.step).gt(0)) {
     return { ok: false, error: `数量必须为${cfg.step}的整数倍` };
   }
 
   return {
     ok: true,
     order: {
-      symbol: String(order.symbol).trim(),
-      name: order.name || String(order.symbol).trim(),
+      symbol: rawSymbol,
+      name: order.name || rawSymbol,
       side: normalizedSide,
       type: normalizedSide, // 兼容旧字段
       triggerType: normalizedTriggerType,
-      triggerPrice,
-      qty,
+      triggerPrice: triggerPrice.toNumber(),
+      qty: qty.toNumber(),
       category,
     }
   };
@@ -57,7 +75,7 @@ async function createOrder(order) {
   const normalized = normalizeOrderInput(order);
   if (!normalized.ok) return { success: false, error: normalized.error };
 
-  return withStateTransaction((state) => {
+  const result = await withStateTransaction((state) => {
     const accountId = state.currentAccountId;
     const account = state.accounts[accountId];
     if (!isActiveAccount(account)) return { success: false, error: '当前账户不存在' };
@@ -112,13 +130,20 @@ async function createOrder(order) {
 
     return { success: true, order: newOrder, accountId };
   });
+  await safeAudit({
+    type: result.success ? 'order_created' : 'order_rejected',
+    accountId: result.accountId,
+    order: result.order || normalized.order,
+    error: result.error,
+  });
+  return result;
 }
 
 /**
  * 取消条件单 — 释放冻结资源
  */
 async function cancelOrder(orderId) {
-  return withStateTransaction((state) => {
+  const result = await withStateTransaction((state) => {
     const accountId = state.currentAccountId;
     const account = state.accounts[accountId];
     if (!isActiveAccount(account)) return { success: false, error: '当前账户不存在' };
@@ -150,6 +175,13 @@ async function cancelOrder(orderId) {
     account.updatedAt = new Date().toISOString();
     return { success: true, message: '订单已取消', orderId, accountId };
   });
+  await safeAudit({
+    type: result.success ? 'order_canceled' : 'order_cancel_failed',
+    accountId: result.accountId,
+    orderId,
+    error: result.error,
+  });
+  return result;
 }
 
 function getPendingOrders() {
@@ -174,7 +206,7 @@ function getAllOrders() {
  * 失败时：释放冻结资源
  */
 async function checkPendingOrders(prices) {
-  return withStateTransaction((state) => {
+  const result = await withStateTransaction((state) => {
     const executed = [];
 
     for (const [accountId, account] of Object.entries(state.accounts || {})) {
@@ -243,6 +275,10 @@ async function checkPendingOrders(prices) {
 
     return executed;
   });
+  if (result.length > 0) {
+    await safeAudit({ type: 'pending_orders_checked', executedCount: result.length, executed: result });
+  }
+  return result;
 }
 
 /**
@@ -257,6 +293,14 @@ function _releaseOrderResources(account, order) {
     }
   } catch (err) {
     console.error('[OrderService] 释放订单资源失败:', err.message);
+  }
+}
+
+async function safeAudit(event) {
+  try {
+    await recordAuditEvent(event);
+  } catch (err) {
+    console.warn('[OrderService] 审计写入失败:', err.message);
   }
 }
 

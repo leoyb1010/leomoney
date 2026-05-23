@@ -16,6 +16,7 @@ const { gatherIntelligence } = require('../../../lib/agent/eyes');
 const { backtestStrategy, backtestAll } = require('../../../lib/agent/backtest');
 const { getApiHealth } = require('../../../lib/quotes');
 const { sseService } = require('../../../lib/sse');
+const { parseBody, parseSymbol } = require('../validation');
 
 // ── 配置 ──
 
@@ -25,7 +26,9 @@ router.get('/agent/config', (req, res) => {
 
 router.patch('/agent/config', (req, res) => {
   try {
-    const config = updateAgentConfig(req.body);
+    const parsed = parseBody('agentConfig', req.body || {});
+    if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.error, issues: parsed.issues });
+    const config = updateAgentConfig(parsed.data);
     res.json({ success: true, config });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -78,9 +81,10 @@ router.get('/agent/signals', (req, res) => {
 router.post('/agent/signal', async (req, res) => {
   try {
     const { symbol, strategyId } = req.body;
-    if (!symbol) return res.status(400).json({ success: false, error: '需要 symbol' });
+    const parsedSymbol = parseSymbol(symbol);
+    if (!parsedSymbol.ok) return res.status(400).json({ success: false, error: parsedSymbol.error });
     const config = getAgentConfig();
-    const result = await generateSignal(symbol, strategyId || config.strategyId);
+    const result = await generateSignal(parsedSymbol.symbol, strategyId || config.strategyId);
     if (result.error) return res.json({ success: false, error: result.error });
 
     // Level 2+ 自动创建方案

@@ -9,30 +9,17 @@ const { createOrder, cancelOrder, getPendingOrders, getAllOrders, checkPendingOr
 const { getWatchlist, addToWatchlist, removeFromWatchlist } = require('../services/watchlistService');
 const { buildAccountSummary } = require('../services/summaryService');
 const { getAllRates } = require('../../../lib/fx');
-
-function parsePositiveNumber(value) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
+const { parseBody, parseSymbol } = require('../validation');
 
 function parseTradePayload(body) {
-  const symbol = typeof body.symbol === 'string' ? body.symbol.trim() : '';
-  const qty = parsePositiveNumber(body.qty);
-  const price = body.price == null || body.price === '' ? null : parsePositiveNumber(body.price);
-  if (!symbol || !qty) return { ok: false, error: '缺少参数: symbol, qty' };
-  if (body.price != null && body.price !== '' && !price) return { ok: false, error: 'price 必须大于 0' };
+  const parsed = parseBody('tradePayload', body);
+  if (!parsed.ok) return { ok: false, error: parsed.error, issues: parsed.issues };
+  const data = parsed.data;
   return {
     ok: true,
-    symbol,
-    qty,
-    price,
-    strategy: body.strategy,
-    source: body.source,
-    mode: body.mode || body.executionMode,
-    runId: body.runId,
-    decisionId: body.decisionId,
-    evidenceRefs: body.evidenceRefs,
-    riskApproved: body.riskApproved,
+    ...data,
+    price: data.price || null,
+    mode: data.mode || data.executionMode,
   };
 }
 
@@ -69,7 +56,9 @@ router.post('/trade/sell', async (req, res) => {
 });
 
 router.post('/orders', async (req, res) => {
-  const { symbol, name, side, action, orderType, type, triggerType, triggerPrice, qty, category } = req.body || {};
+  const bodyCheck = parseBody('orderPayload', req.body || {});
+  if (!bodyCheck.ok) return res.status(400).json({ success: false, error: bodyCheck.error, issues: bodyCheck.issues });
+  const { symbol, name, side, action, orderType, type, triggerType, triggerPrice, qty, category } = bodyCheck.data;
   const normalizedOrderType = (orderType || side || action || '').toLowerCase();
   const legacyTriggerType = ['gte', 'lte'].includes(String(type || '').toLowerCase()) ? String(type).toLowerCase() : '';
   const finalType = normalizedOrderType || (['buy', 'sell'].includes(String(type || '').toLowerCase()) ? String(type).toLowerCase() : '');
@@ -119,8 +108,9 @@ router.get('/watchlist', (req, res) => {
 
 router.post('/watchlist', (req, res) => {
   const { symbol, name, category, currency } = req.body;
-  if (!symbol) return res.status(400).json({ success: false, error: '缺少参数: symbol' });
-  res.json(addToWatchlist({ symbol, name, category, currency }));
+  const parsed = parseSymbol(symbol);
+  if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.error });
+  res.json(addToWatchlist({ symbol: parsed.symbol, name, category, currency }));
 });
 
 router.delete('/watchlist/:symbol', (req, res) => {

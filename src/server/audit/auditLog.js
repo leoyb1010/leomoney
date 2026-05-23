@@ -1,8 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const { getDataDir } = require('../config');
 
-const AUDIT_DIR = path.join(__dirname, '..', '..', '..', 'data', 'audit');
+const AUDIT_DIR = path.join(getDataDir(), 'audit');
 const MAX_READ_FILES = 7;
 
 function ensureAuditDir() {
@@ -31,6 +32,26 @@ async function recordAuditEvent(event) {
   };
   await fs.promises.appendFile(auditFileForDate(), `${safeJson(payload)}\n`, 'utf8');
   return payload;
+}
+
+function getAuditStatus() {
+  ensureAuditDir();
+  const files = fs.readdirSync(AUDIT_DIR)
+    .filter(name => name.endsWith('.jsonl'))
+    .sort();
+  const latest = files.at(-1);
+  let writable = true;
+  try {
+    fs.accessSync(AUDIT_DIR, fs.constants.R_OK | fs.constants.W_OK);
+  } catch {
+    writable = false;
+  }
+  return {
+    dir: AUDIT_DIR,
+    writable,
+    files: files.length,
+    latestFile: latest || null,
+  };
 }
 
 function recentAuditFiles() {
@@ -75,6 +96,7 @@ async function getReplay(runId) {
 
 module.exports = {
   AUDIT_DIR,
+  getAuditStatus,
   recordAuditEvent,
   readAuditEvents,
   getReplay,

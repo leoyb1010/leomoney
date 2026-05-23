@@ -8,12 +8,13 @@ LeoMoney 是一套面向个人投资者和量化研究者的 AI-Native 模拟交
 
 ## 当前版本
 
-- 版本：`v3.0.0`，当前 main 为 `v3.0.0-vnext` 准上线版
+- 版本：`v3.1.0`，Commercial Beta，面向小范围模拟盘/研究用户试运行
 - 默认端口：`3210`
 - 主入口：`server.js`
 - 前端入口：`public/index.html`
 - 数据目录：`data/`，已加入 `.gitignore`
 - 支持市场：A 股、港股、美股、贵金属、加密资产、主要指数
+- 默认安全姿态：仅模拟交易；Agent 直连写入默认关闭；所有自动执行必须通过 ExecutionGate、RiskManager、CircuitBreaker 和审计日志
 
 ## 核心能力
 
@@ -27,6 +28,7 @@ LeoMoney 是一套面向个人投资者和量化研究者的 AI-Native 模拟交
 - 审计与回放：每次自动化运行都会写入审计事件，可通过 runId 回放触发、上下文、决策、风控和执行结果。
 - SSE 实时推送：行情、Agent、交易通知和系统状态可实时推送到前端。
 - 安全降级：LLM 不可用、行情异常、风控拒绝、熔断开启时自动进入 HOLD 或 dry-run 状态。
+- 商业化运行面：新增 `/api/readiness`、`/api/version`、持久化/审计目录状态、CORS 白名单、安全响应头、请求体限制、轻量密钥扫描和 GitHub Actions CI。
 
 ## 快速启动
 
@@ -59,10 +61,33 @@ curl "http://localhost:3210/api/kline/sh000001?scale=5&limit=80"
 ```bash
 npm start              # 启动 Web 服务
 npm run dev            # 同 npm start
+npm test               # 后端领域测试 + 商业化边界测试
 npm run check          # 语法检查 + 后端领域测试
+npm run security:secrets # 高置信度密钥扫描
 npm run find:mojibake  # 扫描乱码文案
 node cli.js --help     # 查看 CLI 能力
 ```
+
+## 环境变量
+
+仓库提供 `.env.example`。本地开发可复制为 `.env`，但不要提交 `.env` 或真实密钥。
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `PORT` | `3210` | Web 服务端口 |
+| `LEOMONEY_DATA_DIR` | `./data` | JSON 状态、备份和审计日志目录 |
+| `LEOMONEY_ALLOWED_ORIGINS` | 空 | CORS 白名单。为空时开发环境开放；部署公网时必须显式设置 |
+| `LEOMONEY_REQUEST_BODY_LIMIT` | `256kb` | JSON 请求体上限 |
+| `LEOMONEY_PAPER_EXECUTION_ENABLED` | `true` | 是否允许写入本地模拟盘 |
+| `LEOMONEY_AGENT_PAPER_EXECUTION_ENABLED` | `false` | 旧 Agent proposal 直连写入开关。默认关闭，建议统一使用 `/api/automation/run` |
+| `LEOMONEY_MAX_ORDER_QTY` | `100000000` | 单笔数量上限 |
+| `LEOMONEY_MAX_ORDER_NOTIONAL_CNY` | `5000000` | 单笔名义金额上限，按 CNY 风控口径 |
+| `LEOMONEY_MAX_ORDER_PRICE` | `10000000` | 单价上限 |
+| `LLM_PROVIDER` | `deepseek` | `deepseek` / `openai` / `qwen` / `local` |
+| `LLM_MODEL` | provider 默认 | LLM 模型名 |
+| `LLM_API_KEY` | 空 | LLM API Key。为空时 Agent 进入安全 HOLD/no-key 模式 |
+| `LLM_TIMEOUT_MS` | `30000` | LLM 请求超时 |
+| `LLM_MAX_RETRIES` | `1` | LLM 重试次数 |
 
 ## Agent 配置
 
@@ -91,7 +116,7 @@ npm start
 
 ## 自动化执行链路
 
-LeoMoney VNext 的自动化不允许绕过交易内核。所有自动决策都走同一条流水线：
+LeoMoney Commercial Beta 的自动化不允许绕过交易内核。所有自动决策都走同一条流水线：
 
 ```text
 Trigger
@@ -111,6 +136,7 @@ Trigger
 | 模式 | 说明 |
 | --- | --- |
 | `dry_run` | 只生成方案、风控和审计，不真实写入交易 |
+| `simulation_only` | 生成执行方案和风险评估，不写入模拟盘 |
 | `paper_execution` | 通过风控后执行模拟交易 |
 
 示例：
@@ -135,6 +161,8 @@ curl "http://localhost:3210/api/replay/run_xxx"
 | 接口 | 方法 | 说明 |
 | --- | --- | --- |
 | `/api/health` | GET | 系统健康、市场状态、Agent、风控、SSE、审计状态 |
+| `/api/readiness` | GET | 启动完整性、持久化写权限、审计写权限和安全降级状态 |
+| `/api/version` | GET | 版本、发布通道、模拟盘声明 |
 | `/api/vnext/status` | GET | VNext 能力清单 |
 
 ### 行情
@@ -153,9 +181,10 @@ curl "http://localhost:3210/api/replay/run_xxx"
 | `/api/accounts` | GET/POST | 账户列表、创建账户 |
 | `/api/accounts/:id/switch` | POST | 切换账户 |
 | `/api/account` | GET | 当前账户资产、持仓、订单 |
-| `/api/buy` | POST | 模拟买入 |
-| `/api/sell` | POST | 模拟卖出 |
-| `/api/orders` | GET | 订单列表 |
+| `/api/trade/buy` | POST | 模拟买入。校验 symbol、qty、price、上限和自动化写入策略 |
+| `/api/trade/sell` | POST | 模拟卖出。校验可卖数量、价格、上限和自动化写入策略 |
+| `/api/orders` | GET/POST | 条件单列表、创建条件单 |
+| `/api/orders/:id` | DELETE | 撤销条件单并释放冻结资源 |
 
 ### Agent 与风控
 
@@ -207,18 +236,30 @@ leomoney/
 ## 测试与验证
 
 ```bash
+npm ci
 npm run check
+npm run security:secrets
 ```
 
-当前远端 main 已验证：
+`npm run check` 当前覆盖：
 
-- 依赖安装成功
-- `npm audit` 0 个漏洞
-- 语法检查通过
-- 后端领域测试 48/48 通过
-- `/api/health` 返回 200
-- `/api/quotes` 返回 39 个资产
-- `/api/kline/sh000001?scale=5&limit=80` 返回 240 个 K 线点
+- `node --check server.js`
+- `node --check scripts/secret-scan.js`
+- `node --test "src/server/domain/__tests__/*.test.js" "src/server/__tests__/*.test.js"`
+- `npm run security:secrets`
+
+CI 位于 `.github/workflows/ci.yml`，执行 `npm ci`、`npm run check` 和 `npm audit --audit-level=high`。
+
+## 商业化 Beta 防线
+
+- **模拟盘声明**：界面、README、健康接口均明确 `simulatedTradingOnly=true`，不构成投资建议。
+- **执行闸门**：`/api/automation/run` 统一经过 Trigger、ContextBuilder、DecisionSchema、ExecutionGate、RiskManager、CircuitBreaker、TradingService、AuditLog。缺行情、合成行情、高风险、低置信度、熔断或资金/持仓不足都会 HOLD/拦截。
+- **旧 Agent 路径治理**：proposal 执行会转入自动化闸门；`LEOMONEY_AGENT_PAPER_EXECUTION_ENABLED=false` 时只 dry-run，不写入模拟盘。
+- **请求校验**：交易、条件单、自动化、Agent 配置、行情 symbol 均有边界校验；订单名义金额、数量和价格有环境变量上限。
+- **安全头与 CORS**：Express 关闭 `x-powered-by`，设置 CSP、frame 禁止、nosniff、referrer policy、permissions policy；部署公网时使用 `LEOMONEY_ALLOWED_ORIGINS`。
+- **持久化安全**：JSON 状态目录可通过 `LEOMONEY_DATA_DIR` 配置；写入使用临时文件原子替换，保留 3 级备份，启动和 readiness 做完整性检查。
+- **审计**：自动化、交易、条件单创建/撤销/触发写入 `data/audit/*.jsonl`，可通过 `/api/audit/events` 和 `/api/replay/:runId` 查询。
+- **成本治理**：LLM 支持超时和重试上限；无 Key 时不报错、不交易，返回安全 HOLD/no-key 模式。
 
 ## 部署建议
 
@@ -235,7 +276,10 @@ PORT=3210 npm start
 - 将 `data/` 放到持久化磁盘。
 - 配置反向代理，例如 Nginx/Caddy。
 - 为公网启用 HTTPS。
-- 为 Agent API Key 使用环境变量，不要写入仓库。
+- 设置 `LEOMONEY_ALLOWED_ORIGINS=https://your-domain.example`。
+- 为 Agent API Key 使用环境变量或平台密钥管理，不要写入仓库。
+- 将 `LEOMONEY_AGENT_PAPER_EXECUTION_ENABLED` 保持为 `false`，除非你明确接受旧 Agent proposal 写入模拟盘的风险；推荐始终通过 `/api/automation/run`。
+- 部署后检查 `GET /api/readiness`、`GET /api/health`、`npm run security:secrets` 和平台日志。
 
 ## 下一阶段路线
 
@@ -246,6 +290,21 @@ PORT=3210 npm start
 - 交易时光机：对任意 runId 回放完整市场上下文与 Agent 决策链。
 
 ## 版本更新记录
+
+### v3.1.0 — 2026-05-23 — Commercial Beta hardening
+
+本次更新把 LeoMoney 从准上线演示推进到可供 Beta 用户试运行的模拟交易/研究指挥舱。
+
+- 版本升级到 `3.1.0`，前端、package、package-lock、README、CI 文档同步。
+- 新增 `.env.example`，集中声明 CORS、数据目录、模拟盘写入、Agent 写入、订单上限、LLM timeout/retry 等运行参数。
+- 新增安全中间件：请求 ID、安全响应头、CORS 白名单、请求体大小限制，并关闭 Express 指纹。
+- 新增 `/api/readiness`、`/api/version`，增强 `/api/health`，暴露版本、商业 Beta 通道、持久化状态、备份状态、审计状态、LLM/no-key 安全模式、Agent 写入策略和安全配置。
+- 强化交易/条件单/自动化/Agent 配置/行情 symbol 校验，增加数量、价格、名义金额、lot step 和查询 limit/scale 边界。
+- 手动交易、自动化交易、条件单创建/撤销/触发写入 JSONL 审计，便于回放和运营排障。
+- Agent proposal 执行改为转入自动化执行闸门；默认 dry-run，不再绕过 ExecutionGate 直连 TradingService。
+- 账户汇总新增 NAV、仓位暴露、现金比例、Top1 集中度、总浮盈浮亏比例和日内摘要。
+- 新增 `scripts/secret-scan.js`、`npm run security:secrets` 和 GitHub Actions CI。
+- 新增商业化边界测试，覆盖请求校验、条件单 lot 校验、Agent/自动化执行策略和组合分析。
 
 ### v3.0.0-vnext — 2026-04-29 — 准上线中文交易指挥舱
 

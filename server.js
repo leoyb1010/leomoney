@@ -6,10 +6,11 @@
 require('dotenv').config({ override: true });
 
 const express = require('express');
-const cors = require('cors');
 const path = require('path');
 const pkg = require('./package.json');
 const { getMarketStatus } = require('./lib/market');
+const { getRuntimeConfig } = require('./src/server/config');
+const { applySecurity } = require('./src/server/security');
 
 const marketRoutes = require('./src/server/routes/marketRoutes');
 const accountRoutes = require('./src/server/routes/accountRoutes');
@@ -18,37 +19,63 @@ const analysisRoutes = require('./src/server/routes/analysisRoutes');
 const agentRoutes = require('./src/server/routes/agentRoutes');
 const systemRoutes = require('./src/server/routes/systemRoutes');
 
-const app = express();
-const PORT = process.env.PORT || 3210;
-
-app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.use('/api', marketRoutes);
-app.use('/api', accountRoutes);
-app.use('/api', tradeRoutes);
-app.use('/api', analysisRoutes);
-app.use('/api', agentRoutes);
-app.use('/api', systemRoutes);
-
-// SSE 实时推送
 const { sseService } = require('./lib/sse');
-app.get('/api/sse', (req, res) => {
-  const channels = req.query.channels?.split(',') || ['quotes', 'agent', 'trade', 'system'];
-  sseService.addClient(res, channels);
-});
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+function createApp(runtimeConfig = getRuntimeConfig()) {
+  const app = express();
+  app.locals.runtimeConfig = runtimeConfig;
 
-app.use((err, req, res, next) => {
-  console.error('[Server Error]', err);
-  res.status(500).json({ success: false, error: err.message || '服务器内部错误' });
-});
+  applySecurity(app, runtimeConfig);
+  app.use(express.json({ limit: runtimeConfig.requestBodyLimit }));
+  app.use(express.static(path.join(__dirname, 'public')));
 
-app.listen(PORT, () => {
+  app.use('/api', marketRoutes);
+  app.use('/api', accountRoutes);
+  app.use('/api', tradeRoutes);
+  app.use('/api', analysisRoutes);
+  app.use('/api', agentRoutes);
+  app.use('/api', systemRoutes);
+
+  // SSE 实时推送
+  app.get('/api/sse', (req, res) => {
+    const channels = req.query.channels?.split(',') || ['quotes', 'agent', 'trade', 'system'];
+    sseService.addClient(res, channels);
+  });
+
+  app.get('/api/*', (req, res) => {
+    res.status(404).json({
+      success: false,
+      error: '接口不存在',
+      code: 'NOT_FOUND',
+      requestId: req.requestId,
+    });
+  });
+
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  });
+
+  app.use((err, req, res, next) => {
+    if (res.headersSent) return next(err);
+    console.error('[Server Error]', err);
+    const statusCode = err.statusCode
+      || (err.type === 'entity.too.large' ? 413 : null)
+      || (err.type === 'entity.parse.failed' ? 400 : 500);
+    const error = err.type === 'entity.parse.failed' ? '请求 JSON 格式错误' : err.message;
+    res.status(statusCode).json({
+      success: false,
+      error: statusCode === 500 ? (error || '服务器内部错误') : error,
+      code: err.type === 'entity.parse.failed' ? 'INVALID_JSON' : err.code,
+      requestId: req.requestId,
+    });
+  });
+
+  return app;
+}
+
+function startServer(runtimeConfig = getRuntimeConfig()) {
+  const app = createApp(runtimeConfig);
+  const server = app.listen(runtimeConfig.port, () => {
   const status = getMarketStatus();
 
   // 数据文件完整性检查（v3 增强：自动备份恢复 + Schema 校验）
@@ -65,7 +92,7 @@ app.listen(PORT, () => {
   }
 
   console.log(`\n🦁 Leomoney v${pkg.version} 已启动`);
-  console.log(`   地址: http://localhost:${PORT}`);
+  console.log(`   地址: http://localhost:${runtimeConfig.port}`);
   console.log(`   A股: ${status.a.status} | 港股: ${status.hk.status} | 美股: ${status.us.status} | 加密: ${status.crypto.status}`);
   console.log(`   CLI:  node cli.js --help`);
 
@@ -80,4 +107,39 @@ app.listen(PORT, () => {
   const { isLLMReady } = require('./lib/agent/brain');
   console.log(`   Agent: ${isLLMReady() ? '✅ LLM 已配置' : '⚠️  LLM 未配置（设置 LLM_API_KEY 启用）'}`);
   console.log();
-});
+  });
+
+  return server;
+}
+
+let server = null;
+
+function shutdown(signal) {
+  console.log(`[Server] 收到 ${signal}，正在停止后台任务...`);
+  try {
+    const { stopScheduler } = require('./lib/scheduler');
+    stopScheduler();
+  } catch (err) {
+    console.warn('[Server] 停止调度器失败:', err.message);
+  }
+  try {
+    const { sseService } = require('./lib/sse');
+    sseService.stopAll();
+  } catch (err) {
+    console.warn('[Server] 停止 SSE 失败:', err.message);
+  }
+  if (!server) process.exit(0);
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 5000).unref();
+}
+
+if (require.main === module) {
+  server = startServer();
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+}
+
+module.exports = {
+  createApp,
+  startServer,
+};

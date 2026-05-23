@@ -1,14 +1,16 @@
 {
   "name": "leomoney",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "private": true,
   "description": "Leomoney - AI-Driven Simulated Trading Platform",
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
     "cli": "node cli.js",
-    "check": "node --check server.js && node --test \"src/server/domain/__tests__/*.test.js\"",
-    "find:mojibake": "node scripts/find-mojibake.js"
+    "test": "node --test \"src/server/domain/__tests__/*.test.js\" \"src/server/__tests__/*.test.js\"",
+    "check": "node --check server.js && node --check scripts/secret-scan.js && npm run test && npm run security:secrets",
+    "find:mojibake": "node scripts/find-mojibake.js",
+    "security:secrets": "node scripts/secret-scan.js"
   },
   "dependencies": {
     "cors": "^2.8.6",

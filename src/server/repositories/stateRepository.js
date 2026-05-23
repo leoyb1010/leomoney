@@ -14,15 +14,44 @@
 const fs = require('fs');
 const path = require('path');
 const { toMoney, toQty } = require('../domain/money');
+const { getDataDir } = require('../config');
 
 const DEFAULT_BALANCE = 1000000;
-const STATE_FILE = path.join(__dirname, '..', '..', '..', 'data', 'state.json');
+const DATA_DIR = getDataDir();
+const STATE_FILE = path.join(DATA_DIR, 'state.json');
 const MIN_STATE_SIZE = 100; // 合法的 state.json 至少 100 字节
 let writeChain = Promise.resolve();
 
 function ensureDataDir() {
-  const dir = path.dirname(STATE_FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+function getStateRepositoryStatus() {
+  ensureDataDir();
+  const backups = [1, 2, 3].map(i => {
+    const file = STATE_FILE.replace('.json', `.backup.${i}.json`);
+    if (!fs.existsSync(file)) return { slot: i, exists: false };
+    const stat = fs.statSync(file);
+    return { slot: i, exists: true, bytes: stat.size, updatedAt: stat.mtime.toISOString() };
+  });
+  const exists = fs.existsSync(STATE_FILE);
+  const stat = exists ? fs.statSync(STATE_FILE) : null;
+  let writable = true;
+  try {
+    fs.accessSync(DATA_DIR, fs.constants.R_OK | fs.constants.W_OK);
+  } catch {
+    writable = false;
+  }
+  return {
+    dataDir: DATA_DIR,
+    stateFile: STATE_FILE,
+    exists,
+    bytes: stat?.size || 0,
+    updatedAt: stat?.mtime?.toISOString() || null,
+    writable,
+    minStateSize: MIN_STATE_SIZE,
+    backups,
+  };
 }
 
 /**
@@ -329,4 +358,14 @@ function withStateTransaction(mutator) {
   return next;
 }
 
-module.exports = { loadState, saveState, withStateTransaction, migrateIfNeeded, startupIntegrityCheck, DEFAULT_BALANCE };
+module.exports = {
+  loadState,
+  saveState,
+  withStateTransaction,
+  migrateIfNeeded,
+  startupIntegrityCheck,
+  getStateRepositoryStatus,
+  DEFAULT_BALANCE,
+  DATA_DIR,
+  STATE_FILE,
+};

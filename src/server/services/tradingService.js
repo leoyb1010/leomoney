@@ -9,24 +9,73 @@ const { getMarketConfig, getUnit } = require('../domain/models');
 const { ORDER_STATUS, transitionOrder, mapLegacyStatus } = require('../domain/orderStateMachine');
 const { freezeCash, releaseCash, freezePosition, releasePosition, settleBuyFill, settleSellFill, migrateAccountIfNeeded } = require('../domain/ledger');
 const { D, mul, gt, lte, toMoney, toQty, calcBuyReserve, calcFee } = require('../domain/money');
+const { getRuntimeConfig } = require('../config');
+const { SYMBOL_PATTERN } = require('../validation');
+const { recordAuditEvent } = require('../audit/auditLog');
+
+function safeDecimal(value) {
+  try {
+    return D(value ?? 0);
+  } catch {
+    return null;
+  }
+}
 
 function validateQty(qty, category) {
-  if (!qty || D(qty).lte(0)) return { ok: false, error: '数量必须大于0' };
+  const config = getRuntimeConfig();
+  const parsedQty = safeDecimal(qty);
+  if (!parsedQty || !parsedQty.isFinite() || parsedQty.lte(0)) return { ok: false, error: '数量必须大于0' };
+  if (parsedQty.gt(config.maxOrderQty)) return { ok: false, error: `数量超过系统上限 ${config.maxOrderQty}` };
   const cfg = getMarketConfig(category);
-  if (cfg.multiple && D(qty).mod(cfg.step).gt(0)) return { ok: false, error: `数量必须为${cfg.step}的整数倍` };
+  if (cfg.multiple && parsedQty.mod(cfg.step).gt(0)) return { ok: false, error: `数量必须为${cfg.step}的整数倍` };
   return { ok: true };
 }
 
 function buildTradeMeta(stockQuote) {
+  const source = stockQuote.source || 'manual';
+  const explicitMode = stockQuote.mode || stockQuote.executionMode;
+  const automatedSource = ['agent', 'automation', 'scheduler'].includes(String(source).toLowerCase());
   return {
     strategy: stockQuote.strategy || undefined,
-    source: stockQuote.source || 'manual',
-    mode: stockQuote.mode || stockQuote.executionMode || 'paper_execution',
+    source,
+    mode: explicitMode || (automatedSource ? 'unspecified' : 'paper_execution'),
     runId: stockQuote.runId || null,
     decisionId: stockQuote.decisionId || null,
     evidenceRefs: Array.isArray(stockQuote.evidenceRefs) ? stockQuote.evidenceRefs : [],
     riskApproved: stockQuote.riskApproved !== false,
   };
+}
+
+function validateTradeIntent(stockQuote, qty, price, side) {
+  const config = getRuntimeConfig();
+  const symbol = String(stockQuote.symbol || '').trim();
+  if (!SYMBOL_PATTERN.test(symbol)) return { ok: false, error: 'symbol 格式无效' };
+  const numericPrice = safeDecimal(price);
+  const numericQty = safeDecimal(qty);
+  if (!numericQty || !numericQty.isFinite() || numericQty.lte(0)) return { ok: false, error: '数量必须大于0' };
+  if (!numericPrice || !numericPrice.isFinite() || numericPrice.lte(0)) return { ok: false, error: '无效价格' };
+  if (numericPrice.gt(config.maxOrderPrice)) return { ok: false, error: `价格超过系统上限 ${config.maxOrderPrice}` };
+  const notional = numericPrice.times(numericQty);
+  if (notional.gt(config.maxOrderNotionalCny)) return { ok: false, error: `订单名义金额超过系统上限 ${config.maxOrderNotionalCny}` };
+
+  const meta = buildTradeMeta(stockQuote);
+  const automated = ['agent', 'automation', 'scheduler'].includes(String(meta.source || '').toLowerCase()) || !!meta.runId || !!meta.decisionId;
+  if (automated) {
+    if (meta.mode !== 'paper_execution') {
+      return { ok: false, error: '自动化/Agent 交易必须通过 paper_execution 模式，dry-run 或未声明模式不会写入模拟盘' };
+    }
+    if (!config.paperExecutionEnabled) {
+      return { ok: false, error: '当前环境已关闭所有模拟盘写入' };
+    }
+    if (meta.source === 'agent' && !config.agentPaperExecutionEnabled) {
+      return { ok: false, error: 'Agent 直连执行默认关闭，请使用 /api/automation/run 执行闸门或显式启用 LEOMONEY_AGENT_PAPER_EXECUTION_ENABLED=true' };
+    }
+    if (!meta.riskApproved) {
+      return { ok: false, error: '自动化/Agent 交易缺少风控批准' };
+    }
+  }
+
+  return { ok: true, meta, side };
 }
 
 /**
@@ -36,12 +85,13 @@ function buildTradeMeta(stockQuote) {
 async function buy(stockQuote, qty, limitPrice = null) {
   const price = limitPrice || stockQuote.price;
   const category = stockQuote.category || 'astocks';
-  if (!price || D(price).lte(0)) return { success: false, error: '无效价格' };
+  const intent = validateTradeIntent(stockQuote, qty, price, 'buy');
+  if (!intent.ok) return auditAndReturn({ success: false, error: intent.error }, stockQuote, qty, price, 'buy');
 
   const v = validateQty(qty, category);
-  if (!v.ok) return { success: false, error: v.error };
+  if (!v.ok) return auditAndReturn({ success: false, error: v.error }, stockQuote, qty, price, 'buy');
 
-  return withStateTransaction((state) => {
+  const result = await withStateTransaction((state) => {
     const accountId = state.currentAccountId;
     const account = state.accounts[accountId];
     if (!account) return { success: false, error: '当前账户不存在' };
@@ -68,7 +118,7 @@ async function buy(stockQuote, qty, limitPrice = null) {
         qty,
         category,
         orderId: null,
-        meta: buildTradeMeta(stockQuote),
+        meta: intent.meta,
       });
 
       // 释放多余的冻结（预留 vs 实际费用差）
@@ -90,6 +140,7 @@ async function buy(stockQuote, qty, limitPrice = null) {
       return { success: false, error: `买入结算失败: ${err.message}` };
     }
   });
+  return auditAndReturn(result, stockQuote, qty, price, 'buy');
 }
 
 /**
@@ -99,12 +150,13 @@ async function buy(stockQuote, qty, limitPrice = null) {
 async function sell(stockQuote, qty, limitPrice = null) {
   const price = limitPrice || stockQuote.price;
   const category = stockQuote.category || 'astocks';
-  if (!price || D(price).lte(0)) return { success: false, error: '无效价格' };
+  const intent = validateTradeIntent(stockQuote, qty, price, 'sell');
+  if (!intent.ok) return auditAndReturn({ success: false, error: intent.error }, stockQuote, qty, price, 'sell');
 
   const v = validateQty(qty, category);
-  if (!v.ok) return { success: false, error: v.error };
+  if (!v.ok) return auditAndReturn({ success: false, error: v.error }, stockQuote, qty, price, 'sell');
 
-  return withStateTransaction((state) => {
+  const result = await withStateTransaction((state) => {
     const accountId = state.currentAccountId;
     const account = state.accounts[accountId];
     if (!account) return { success: false, error: '当前账户不存在' };
@@ -133,7 +185,7 @@ async function sell(stockQuote, qty, limitPrice = null) {
         qty,
         category,
         orderId: null,
-        meta: buildTradeMeta(stockQuote),
+        meta: intent.meta,
       });
 
       return {
@@ -150,6 +202,7 @@ async function sell(stockQuote, qty, limitPrice = null) {
       return { success: false, error: `卖出结算失败: ${err.message}` };
     }
   });
+  return auditAndReturn(result, stockQuote, qty, price, 'sell');
 }
 
 /**
@@ -203,4 +256,26 @@ function executeOrderFill(account, order, currentPrice) {
   }
 }
 
-module.exports = { buy, sell, validateQty, buildTradeMeta, executeOrderFill };
+async function auditAndReturn(result, stockQuote, qty, price, side) {
+  try {
+    const meta = buildTradeMeta(stockQuote);
+    await recordAuditEvent({
+      type: result.success ? 'trade_executed' : 'trade_rejected',
+      source: meta.source,
+      mode: meta.mode,
+      runId: meta.runId,
+      decisionId: meta.decisionId,
+      symbol: stockQuote.symbol,
+      name: stockQuote.name,
+      side,
+      qty,
+      price: price ? toMoney(price) : null,
+      result: { success: result.success, error: result.error, accountId: result.accountId },
+    });
+  } catch (err) {
+    console.warn('[TradingService] 审计写入失败:', err.message);
+  }
+  return result;
+}
+
+module.exports = { buy, sell, validateQty, buildTradeMeta, validateTradeIntent, executeOrderFill };

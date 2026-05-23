@@ -1,6 +1,42 @@
-# Leomoney v1.3.0 升级说明
+# LeoMoney 升级说明
 
-## 升级目标
+## v3.1.0 Commercial Beta 升级目标
+
+将 LeoMoney 从 `v3.0.0-vnext` 准上线指挥舱升级为可供 Beta 用户试运行的 AI 模拟交易/研究平台。升级重点不是 README 包装，而是运行边界、安全默认值、自动化治理、审计、持久化状态、CI 和验证。
+
+## v3.1.0 关键变更
+
+- 版本统一升级到 `3.1.0`：`package.json`、`package-lock.json`、前端状态文案、README 和变更记录同步。
+- 新增 `.env.example`，集中声明 `LEOMONEY_DATA_DIR`、`LEOMONEY_ALLOWED_ORIGINS`、`LEOMONEY_PAPER_EXECUTION_ENABLED`、`LEOMONEY_AGENT_PAPER_EXECUTION_ENABLED`、订单上限和 LLM timeout/retry。
+- 新增安全中间件：请求 ID、安全响应头、CORS 白名单、JSON body 限制、关闭 Express 指纹。
+- 新增 `/api/readiness` 与 `/api/version`，扩展 `/api/health`，将数据目录、备份、审计、Agent、LLM、风控和安全状态暴露给部署探针。
+- 交易、条件单、自动化、Agent 配置和行情查询增加边界校验；服务层增加名义金额上限和自动化执行策略检查。
+- 旧 Agent proposal 执行路径改为进入自动化执行闸门，默认 dry-run，不再直连 `buy/sell` 绕过 ExecutionGate。
+- 交易和条件单生命周期写入 `data/audit/*.jsonl`。
+- 账户摘要增加 NAV、仓位暴露、现金比例、集中度、总浮盈浮亏比例和日内摘要。
+- 新增密钥扫描、GitHub Actions CI 和商业化边界测试。
+
+## 升级/部署检查
+
+```bash
+npm ci
+cp .env.example .env
+npm run check
+npm run security:secrets
+PORT=3210 npm start
+curl http://localhost:3210/api/readiness
+curl http://localhost:3210/api/health
+```
+
+公网部署时必须设置：
+
+```bash
+LEOMONEY_ALLOWED_ORIGINS=https://your-domain.example
+LEOMONEY_DATA_DIR=/var/lib/leomoney
+LEOMONEY_AGENT_PAPER_EXECUTION_ENABLED=false
+```
+
+## v1.3.0 升级目标
 
 将 Leomoney 从"能运行的工具"升级为"人+Agent 双模式可操作的产品级系统"，全程兼容、可回退。
 

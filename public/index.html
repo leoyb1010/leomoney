@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LeoMoney - &#x667A;&#x80FD;&#x6A21;&#x62DF;&#x4EA4;&#x6613;&#x7CFB;&#x7EDF;</title>
+  <title>LeoMoney - AI&#x6A21;&#x62DF;&#x4EA4;&#x6613;&#x7814;&#x7A76;&#x6307;&#x6325;&#x8231;</title>
   <style>
     :root {
       --bg: #070c14;
@@ -257,12 +257,13 @@
       <div class="brand">
         <div class="brand-mark">L</div>
         <div>
-          <div class="brand-title">LeoMoney &#x667A;&#x80FD;&#x6A21;&#x62DF;&#x4EA4;&#x6613;&#x7CFB;&#x7EDF;</div>
-          <div class="brand-sub">&#x884C;&#x60C5; / &#x4EA4;&#x6613; / &#x98CE;&#x63A7; / Agent / &#x5BA1;&#x8BA1;&#x56DE;&#x653E;</div>
+          <div class="brand-title">LeoMoney AI&#x6A21;&#x62DF;&#x4EA4;&#x6613;&#x7814;&#x7A76;&#x6307;&#x6325;&#x8231;</div>
+          <div class="brand-sub">Commercial Beta v3.1.0 &#x00B7; &#x6A21;&#x62DF;&#x76D8; / &#x98CE;&#x63A7;&#x95F8;&#x95E8; / Agent / &#x5BA1;&#x8BA1;&#x56DE;&#x653E;</div>
         </div>
       </div>
       <div class="top-actions">
         <span class="pill"><span class="dot"></span><span id="systemState">&#x8FDE;&#x63A5;&#x4E2D;</span></span>
+        <span class="pill"><span id="versionBadge">v3.1.0 beta</span></span>
         <button class="pill" id="accountMenuBtn" type="button">&#x5F53;&#x524D;&#x8D26;&#x6237;&#xFF1A;<b id="topAccount" class="cyan">--</b></button>
         <span class="pill">&#x5E02;&#x573A;&#xFF1A;<b id="topMarket" class="green">--</b></span>
         <span class="pill">Agent&#x7B49;&#x7EA7;&#xFF1A;<b id="topLevel" class="gold">--</b></span>
@@ -308,7 +309,7 @@
       <main class="center">
         <section class="view active" id="view-dashboard">
           <div class="row">
-            <div><h1>&#x8D26;&#x6237;&#x603B;&#x89C8;</h1><p class="muted">&#x591A;&#x8D26;&#x6237;&#x9694;&#x79BB;&#x3001;&#x5B9E;&#x65F6;&#x884C;&#x60C5;&#x3001;&#x98CE;&#x63A7;&#x548C;&#x5BA1;&#x8BA1;&#x94FE;&#x8DEF;&#x5DF2;&#x63A5;&#x5165;&#x3002;</p></div>
+            <div><h1>&#x8D26;&#x6237;&#x603B;&#x89C8;</h1><p class="muted">&#x672C;&#x7CFB;&#x7EDF;&#x53EA;&#x7528;&#x4E8E;&#x6A21;&#x62DF;&#x4EA4;&#x6613;&#x548C;&#x7B56;&#x7565;&#x7814;&#x7A76;&#xFF0C;&#x6240;&#x6709;&#x81EA;&#x52A8;&#x6267;&#x884C;&#x90FD;&#x5FC5;&#x987B;&#x901A;&#x8FC7;&#x98CE;&#x63A7;&#x95F8;&#x95E8;&#x4E0E;&#x5BA1;&#x8BA1;&#x3002;</p></div>
             <button class="btn primary" data-view-jump="trade">&#x53BB;&#x4EA4;&#x6613;</button>
           </div>
           <div class="cards metric-grid">
@@ -343,7 +344,7 @@
           <div class="card"><table><thead><tr><th>&#x5E02;&#x573A;</th><th>&#x72B6;&#x6001;</th><th>&#x6570;&#x636E;&#x6E90;</th><th>&#x66F4;&#x65B0;&#x65F6;&#x95F4;</th></tr></thead><tbody id="marketStatusBody"></tbody></table></div>
         </section>
         <section class="view" id="view-trade">
-          <div class="row"><div><h1>&#x6A21;&#x62DF;&#x4EA4;&#x6613;</h1><p class="muted">&#x9ED8;&#x8BA4;&#x662F;&#x6F14;&#x7EC3;&#x6A21;&#x5F0F;&#xFF0C;&#x4E0D;&#x4F1A;&#x5199;&#x5165;&#x6301;&#x4ED3;&#x3002;</p></div></div>
+          <div class="row"><div><h1>&#x6A21;&#x62DF;&#x4EA4;&#x6613;</h1><p class="muted">&#x9ED8;&#x8BA4;&#x662F;&#x6F14;&#x7EC3;&#x6A21;&#x5F0F;&#xFF1B;paper_execution &#x4EC5;&#x5199;&#x5165;&#x672C;&#x5730;&#x6A21;&#x62DF;&#x76D8;&#xFF0C;&#x4E0D;&#x6784;&#x6210;&#x6295;&#x8D44;&#x5EFA;&#x8BAE;&#x3002;</p></div></div>
           <div class="cards" style="grid-template-columns:repeat(2,minmax(0,1fr))">
             <div class="card">
               <div class="field"><label>&#x6807;&#x7684;&#x4EE3;&#x7801;</label><input id="symbolInput" value="600519"></div>
@@ -416,7 +417,7 @@
     async function switchAccount(accountId) { if (!accountId || accountId === app.accountId) return; await api(`/api/accounts/${encodeURIComponent(accountId)}/switch`, { method: "POST" }); closeAccountMenu(); toast(Z.switched); await refreshAll(); }
     async function createAccount() { const accountName = $("newAccountName").value.trim() || "\u65b0\u8d26\u6237"; const balance = Number($("newAccountBalance").value || 1000000); await api("/api/accounts", { method: "POST", body: JSON.stringify({ accountName, balance, color: "#18c7e8" }) }); toast(Z.created); await refreshAll(); }
     async function resetAccount() { if (!confirm(Z.resetConfirm)) return; await api("/api/account/reset", { method: "POST" }); toast(Z.reset); await refreshAll(); }
-    async function loadHealth() { const data = await api("/api/health"); $("systemState").textContent = Z.online; $("topMarket").textContent = data.market?.status || "--"; $("topLevel").textContent = data.agent?.breaker?.level || "--"; const risk = data.agent?.risk || {}; const breaker = data.agent?.breaker || {}; $("riskBadge").textContent = breaker.state === "CLOSED" ? Z.normal : breaker.state || "--"; $("riskPanel").innerHTML = `\u7194\u65ad\u72b6\u6001\uff1a<b class="${breaker.state==="CLOSED"?"green":"gold"}">${breaker.state==="CLOSED"?Z.normal:breaker.state||"--"}</b><br>\u5f53\u524d\u7b49\u7ea7\uff1aL${breaker.level || "--"}<br>\u4eca\u65e5\u4ea4\u6613\uff1a${risk.todayTradeCount || 0} / ${risk.maxTradesPerDay || "--"} \u7b14<br>\u5355\u7b14\u4ed3\u4f4d\u4e0a\u9650\uff1a${Math.round((risk.config?.maxSinglePositionPct || 0)*100)}%`; }
+    async function loadHealth() { const data = await api("/api/health"); $("systemState").textContent = Z.online; $("versionBadge").textContent = `v${data.version || "3.1.0"} ${data.channel || "beta"}`; $("topMarket").textContent = data.market?.status || "--"; $("topLevel").textContent = data.agent?.breaker?.level || "--"; const risk = data.agent?.risk || {}; const breaker = data.agent?.breaker || {}; $("riskBadge").textContent = breaker.state === "CLOSED" ? Z.normal : breaker.state || "--"; $("riskPanel").innerHTML = `\u7194\u65ad\u72b6\u6001\uff1a<b class="${breaker.state==="CLOSED"?"green":"gold"}">${breaker.state==="CLOSED"?Z.normal:breaker.state||"--"}</b><br>\u5f53\u524d\u7b49\u7ea7\uff1aL${breaker.level || "--"}<br>\u4eca\u65e5\u4ea4\u6613\uff1a${risk.todayTradeCount || 0} / ${risk.maxTradesPerDay || "--"} \u7b14<br>\u5355\u7b14\u4ed3\u4f4d\u4e0a\u9650\uff1a${Math.round((risk.config?.maxSinglePositionPct || 0)*100)}%<br>\u6A21\u62DF\u76D8\u5199\u5165\uff1a${data.product?.paperExecutionEnabled ? "\u5DF2\u542F\u7528" : "\u5DF2\u5173\u95ED"}<br>Agent\u76F4\u63A5\u5199\u5165\uff1a${data.product?.agentPaperExecutionEnabled ? "\u5DF2\u542F\u7528" : "\u9ED8\u8BA4\u5173\u95ED"}`; }
     async function loadAgent() { const [status, strategies] = await Promise.all([api("/api/agent/status"), api("/api/agent/strategies")]); app.strategies = strategies.strategies || []; const config = status.agent || {}; $("agentEnabled").textContent = config.enabled ? Z.enabled : Z.disabled; $("agentStrategy").textContent = strategyName(config.strategyId); $("llmState").textContent = status.llmReady ? Z.configured : Z.notConfigured; $("agentEnabledInput").value = String(!!config.enabled); $("agentLevelInput").value = String(config.level || 1); $("agentScanInput").value = config.scanInterval || 60; $("agentStrategyIntervalInput").value = config.strategyInterval || 120; renderStrategySelect(config.strategyId || "balanced"); }
     function strategyName(id) { return (app.strategies.find(s=>s.id===id) || {}).name || id || "--"; }
     function renderStrategySelect(selected) { const select = $("agentStrategyInput"); select.innerHTML = app.strategies.map(s=>`<option value="${s.id}" ${s.id===selected?"selected":""}>${s.icon || ""} ${s.name}</option>`).join(""); updateStrategyDescription(); }
