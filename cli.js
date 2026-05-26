@@ -60,7 +60,7 @@ async function cmdQuote() {
     console.log();
   }
 }
-function formatPrice(p) { return p >= 1000 ? p.toFixed(2) : p.toFixed(2); }
+function formatPrice(p) { return p >= 1000 ? p.toFixed(0) : p.toFixed(2); }
 
 async function cmdBuy() {
   const symbol = args[0], qty = parseInt(args[1]), price = args[2] ? parseFloat(args[2]) : null;
