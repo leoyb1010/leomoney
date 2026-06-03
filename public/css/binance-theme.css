@@ -135,23 +135,32 @@ body {
   50% { box-shadow: 0 0 22px rgba(240,185,11,.28); }
 }
 
-.intel-panel {
-  position: absolute; right: 0; top: calc(100% + 8px);
-  width: min(420px, calc(100vw - 24px));
-  max-height: min(72vh, 560px);
-  overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--top);
-  box-shadow: 0 16px 48px rgba(0,0,0,.55);
-  padding: 12px;
+.intel-backdrop {
+  position: fixed; inset: 0; z-index: 199;
+  background: rgba(0,0,0,.45);
   opacity: 0; visibility: hidden; pointer-events: none;
-  transform: translateY(-6px);
-  transition: opacity .15s ease, transform .15s ease, visibility .15s;
+  transition: opacity .15s ease, visibility .15s;
+}
+.intel-backdrop.open { opacity: 1; visibility: visible; pointer-events: auto; }
+
+.intel-panel {
+  position: fixed; right: 12px; top: 56px;
+  width: min(440px, calc(100vw - 20px));
+  max-height: min(78vh, 620px);
+  overflow: auto;
+  border: 1px solid var(--brand);
+  border-radius: 8px;
+  background: var(--top);
+  box-shadow: 0 20px 60px rgba(0,0,0,.65), 0 0 0 1px rgba(240,185,11,.12);
+  padding: 14px;
+  z-index: 200;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transform: translateY(-8px) scale(.98);
+  transition: opacity .18s ease, transform .18s ease, visibility .18s;
 }
 .intel-panel.open {
   opacity: 1; visibility: visible; pointer-events: auto;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
 }
 .intel-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -203,7 +212,12 @@ body {
 .intel-action.sell { background: rgba(246,70,93,.15); color: var(--red); }
 .intel-action.hold { background: rgba(132,142,156,.15); color: var(--muted); }
 .intel-news { margin: 0; padding-left: 16px; color: var(--muted); }
-.intel-news li { margin-bottom: 4px; }
+.intel-news li { margin-bottom: 6px; }
+.intel-news a { color: var(--text); text-decoration: none; font-weight: 600; }
+.intel-news a:hover { color: var(--brand); text-decoration: underline; }
+.intel-src { font-size: 11px; color: var(--weak); margin: 4px 0 8px; }
+.intel-section-title { font-size: 11px; color: var(--brand); font-weight: 800; margin: 8px 0 4px; text-transform: uppercase; letter-spacing: .04em; }
+.intel-loading { color: var(--brand) !important; }
 
 .top-actions { gap: 6px !important; flex-wrap: nowrap !important; }
 .top-actions .status-pill { order: 10; }
