@@ -52,7 +52,7 @@ A=$(curl -sf "$BASE/api/agent/status" || true)
 if echo "$A" | grep -q '"agent"'; then ok "分析师 Agent"; else fail "agent status"; fi
 
 echo "[10] 静态资源"
-for path in "/" "/css/leo-desk.css" "/js/intel-hub.js"; do
+for path in "/" "/css/leo-tokens.css" "/css/leo-app.css" "/js/zh-ui.js" "/js/intel-hub.js"; do
   code=$(curl -sf -o /dev/null -w "%{http_code}" "$BASE$path" || echo "000")
   if [ "$code" = "200" ]; then ok "static $path"; else fail "static $path ($code)"; fi
 done

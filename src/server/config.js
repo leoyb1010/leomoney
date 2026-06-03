@@ -1,7 +1,7 @@
 const path = require('path');
 
 const VERSION_CHANNEL = process.env.LEOMONEY_VERSION_CHANNEL || 'commercial-beta';
-const PRODUCT_NAME = 'Leo Desk';
+const PRODUCT_NAME = '个人模拟仓';
 const DEFAULT_PORT = 3210;
 
 function parseBoolean(value, fallback = false) {

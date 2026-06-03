@@ -1,8 +1,9 @@
 /**
- * 消息分析 Hub — 真实头条 + Agent
+ * 分析师情报 Hub — 实时头条 + 智能体
  */
 (function initIntelHub() {
   const $ = id => document.getElementById(id);
+  const ZH = () => window.ZhUi;
   const trigger = $('intelTrigger');
   const panel = $('intelPanel');
   const backdrop = $('intelBackdrop');
@@ -28,10 +29,11 @@
   }
 
   function toast(text) {
-    if (typeof window.toast === 'function') return window.toast(text);
+    const msg = ZH()?.translateReason?.(text) || text;
+    if (typeof window.toast === 'function') return window.toast(msg);
     const el = $('toast');
     if (!el) return;
-    el.textContent = text;
+    el.textContent = msg;
     el.classList.add('show');
     setTimeout(() => el.classList.remove('show'), 2800);
   }
@@ -57,19 +59,27 @@
     return 'hold';
   }
 
+  function headlineText(item) {
+    return item.titleZh || item.title || item.snippet || '';
+  }
+
   function renderHeadline(item) {
-    const title = esc(item.title);
+    const title = esc(headlineText(item));
+    const orig = item.titleEn && item.titleEn !== headlineText(item)
+      ? `<span class="intel-title-en" title="原文">${esc(item.titleEn)}</span>`
+      : '';
     const url = item.url || item.link || '';
     const meta = [item.source, item.time].filter(Boolean).join(' · ');
+    const body = orig ? `${title}${orig}` : title;
     if (url) {
-      return `<li><a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${title}</a><span class="weak"> ${esc(meta)}</span></li>`;
+      return `<li><a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${body}</a><span class="weak"> ${esc(meta)}</span></li>`;
     }
-    return `<li>${title}<span class="weak"> ${esc(meta)}</span></li>`;
+    return `<li>${body}<span class="weak"> ${esc(meta)}</span></li>`;
   }
 
   function renderFeed(items) {
     if (!items?.length) {
-      feedEl.innerHTML = '<div class="notice">点击「实时检索」拉取 Google News 头条（免费源）。打开面板时会自动检索当前标的。</div>';
+      feedEl.innerHTML = '<div class="notice">点击「实时检索」拉取新闻头条（公开源）。打开面板时会自动检索当前标的。</div>';
       badge.classList.add('empty');
       badge.textContent = '0';
       return;
@@ -80,14 +90,16 @@
     feedEl.innerHTML = items.map(entry => {
       const news = (entry.news || []).slice(0, 6).map(renderHeadline).join('');
       const search = (entry.search || []).slice(0, 3).map(s => renderHeadline({
-        title: s.title || s.snippet,
+        title: s.titleZh || s.title || s.snippet,
+        titleZh: s.titleZh,
+        titleEn: s.titleEn,
         url: s.url,
-        source: s.source || 'Search',
+        source: s.source || '扩展检索',
         time: '',
       })).join('');
       const meta = entry.sourceMeta || {};
-      const srcLine = meta.googleEn != null
-        ? `<div class="intel-src">来源：Google ${meta.googleEn + meta.googleZh} 条${meta.eastmoney ? ` · 东财 ${meta.eastmoney}` : ''}${meta.searchApi ? ` · 搜索 ${meta.searchApi}` : ''}</div>`
+      const srcLine = ZH()?.intelSourceLine?.(meta)
+        ? `<div class="intel-src">${esc(ZH().intelSourceLine(meta))}</div>`
         : '';
       const analysis = entry.analysis;
       const quote = entry.quote;
@@ -96,13 +108,14 @@
         : '';
       const analysisBlock = analysis?.summary
         ? `<div class="intel-summary">${esc(analysis.summary).replace(/\n/g, '<br>')}</div>
-           <span class="intel-action ${actionClass(analysis.action)}">${esc(analysis.action || 'HOLD')} · ${analysis.llmReady ? 'Agent' : '规则'} · ${Math.round((analysis.confidence || 0) * 100)}%</span>`
+           <span class="intel-action ${actionClass(analysis.action)}">${ZH().actionLabel(analysis.action)} · ${analysis.llmReady ? '智能体' : '规则'} · 置信 ${Math.round((analysis.confidence || 0) * 100)}%</span>`
         : '';
       const emptyHint = !news && !search
-        ? '<div class="notice" style="margin-top:8px">未抓到新闻标题，请换关键词或检查网络能否访问 Google News。</div>'
+        ? '<div class="notice mt-2">未抓到新闻标题，请换关键词或检查网络能否访问新闻源。</div>'
         : '';
+      const timeStr = ZH()?.formatTime?.(entry.ts) || new Date(entry.ts).toLocaleTimeString('zh-CN');
       return `<article class="intel-item">
-        <div class="intel-meta"><b>${esc(entry.query || entry.symbol)}</b> · ${new Date(entry.ts).toLocaleTimeString()}</div>
+        <div class="intel-meta"><b>${esc(entry.query || entry.symbol)}</b> · ${timeStr}</div>
         ${quoteLine}${srcLine}
         ${news ? `<div class="intel-section-title">头条</div><ul class="intel-news">${news}</ul>` : ''}
         ${search ? `<div class="intel-section-title">扩展</div><ul class="intel-news">${search}</ul>` : ''}
@@ -114,16 +127,19 @@
 
   function setLoading(on) {
     if (on) {
-      feedEl.innerHTML = '<div class="notice intel-loading">正在从 Google News 拉取实时头条…</div>';
+      feedEl.innerHTML = '<div class="notice intel-loading">正在拉取实时新闻头条…</div>';
     }
+  }
+
+  function setLlmTag(ready) {
+    if (!llmTag) return;
+    llmTag.textContent = ready ? '智能体在线' : '规则摘要';
+    llmTag.classList.toggle('ready', !!ready);
   }
 
   async function refreshFeed() {
     const data = await api('/api/intel/feed?limit=25');
-    if (llmTag) {
-      llmTag.textContent = data.llmReady ? 'Agent 在线' : '规则摘要';
-      llmTag.classList.toggle('ready', !!data.llmReady);
-    }
+    setLlmTag(data.llmReady);
     renderFeed(data.items || []);
   }
 
@@ -172,10 +188,7 @@
         toast('已移除关注');
       });
     });
-    if (llmTag) {
-      llmTag.textContent = data.llmReady ? 'Agent 在线' : '规则摘要';
-      llmTag.classList.toggle('ready', !!data.llmReady);
-    }
+    setLlmTag(data.llmReady);
   }
 
   function queryPayload() {
@@ -243,10 +256,11 @@
       });
       await refreshFeed();
       if (data.signal) {
-        toast(`Agent：${data.signal.action || '观望'} ${data.signal.symbol || ''}`);
+        const act = ZH()?.actionLabel?.(data.signal.action) || data.signal.action || '观望';
+        toast(`智能体：${act} ${data.signal.symbol || ''}`);
         if (typeof window.loadAgent === 'function') window.loadAgent();
       } else {
-        toast(data.error || '需配置 LLM_API_KEY');
+        toast(data.error || '需配置大模型 API 密钥');
       }
     } catch (err) {
       toast(err.message);
