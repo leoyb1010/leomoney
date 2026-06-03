@@ -52,6 +52,20 @@ function schemas() {
     category: z.enum(CATEGORY_VALUES).optional(),
   }).strip();
 
+  const positionImport = z.object({
+    mode: z.enum(['record', 'buy']).default('record'),
+    positions: z.array(z.object({
+      symbol,
+      name: z.string().trim().max(80).optional(),
+      qty: numberWithin('qty', config.maxOrderQty),
+      avgCost: numberWithin('avgCost', config.maxOrderPrice),
+      category: z.enum(CATEGORY_VALUES).optional(),
+      currency: z.enum(['CNY', 'USD', 'HKD', 'USDT']).optional(),
+      boughtAt: z.string().trim().max(40).optional(),
+      importedFrom: z.string().trim().max(40).optional(),
+    }).strip()).min(1, '请至少录入一条持仓').max(100, '单次最多导入 100 条持仓'),
+  }).strip();
+
   const automationRun = z.object({
     id: z.string().trim().min(1).max(96).optional(),
     type: z.enum(['manual', 'schedule', 'condition', 'agent', 'backtest']).optional(),
@@ -71,7 +85,7 @@ function schemas() {
     watchSymbols: z.array(symbol).max(100).optional(),
   }).strip();
 
-  return { symbol, tradePayload, orderPayload, automationRun, agentConfig };
+  return { symbol, tradePayload, orderPayload, positionImport, automationRun, agentConfig };
 }
 
 function parseBody(schemaName, body) {

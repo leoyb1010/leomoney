@@ -1,37 +1,57 @@
-# Leo Desk
+# LeoMoney V4
 
-**个人模拟仓 · 分析师工作台** — 实时行情、模拟成交、中文情报解读与信号生成，本地一体化运行。
+**美股 · 加密 · 个人模拟交易工作台**。面向个人投资研究，覆盖实时行情、模拟交易、持仓录入、条件单、情报中心、策略 Agent、回测、资产分析和移动端工作流。
 
 > 仅用于策略研究与模拟交易练习，不构成投资建议，不接实盘。
 
-## 定位
+## V4 能力
 
-| 角色 | 能力 |
+| 模块 | 内容 |
 | --- | --- |
-| **模拟仓** | 多账户、买卖、持仓、条件单、风控闸门、审计回放 |
-| **分析师** | 实时情报检索、规则/LLM 解读、策略信号 |
-| **行情** | 权益（公开源）+ 数字资产（Binance 现货/合约，约 300+ 交易对） |
+| 总览 | 美股大盘条、BTC/ETH、账户资产、持仓概览、情报摘要、系统健康 |
+| 行情 | 默认美股，兼顾加密、大盘指数、A股、港股、大宗商品；搜索、自选、来源和新鲜度 |
+| 标的详情 | K 线、多周期、相关情报、快捷交易 |
+| 模拟交易 | 市价/限价买卖、仓位比例、预计成交额、止盈止损条件单 |
+| 持仓 | 浮动盈亏、一键平仓、CSV/文本导入已有持仓 |
+| 订单 | 条件单、撤单、最近成交 |
+| 资产 | 多账户、初始资金、现金/持仓占比、集中度分析 |
+| 情报 | 中英文情报、标题+摘要中文化、来源透明、标的映射、订阅、深度解读 |
+| 策略 | 策略库、运行配置、信号流、方案审批、回测、自动化闸门演练 |
+| 设置 | 暗/亮主题、USD/CNY/USDT/HKD、红涨绿跌/绿涨红跌、源健康 |
 
-界面与文案为 **中文**（`zh-ui.js`），不出现交易所品牌；底层通过公开 API 拉取 **权益** 与 **数字资产** 数据。
+金融产品、股票、ETF、指数、币种、交易对和公司名称不强制翻译；例如 Apple、NVIDIA、BTC、ETH、SPY、QQQ、S&P 500 可以自然保留英文。
 
 ## 快速启动
 
 ```bash
 npm install
-cp .env.example .env   # 按需填写 LLM / 检索密钥
+cp .env.example .env
 npm start
 # http://localhost:3210
 ```
 
-浏览器建议 **硬刷新**（`Cmd+Shift+R`）以加载最新静态资源。
-
-## 验证
+前端源码在 `web/`，构建产物输出到 `public/`，Express 同源托管。
 
 ```bash
-npm run check              # 语法 + 单元测试 + 密钥扫描
-npm run test:integration   # 离线路报源测试
-npm run verify             # 端到端 API 冒烟（需先 npm start）
+npm run web:dev     # Vite 开发模式，代理 /api 到 3210
+npm run build       # 构建 React 前端到 public/
+npm run check       # typecheck + build + tests + secret scan
+npm run verify      # API/静态资源冒烟，需先 npm start
 ```
+
+## 关键 API
+
+| API | 用途 |
+| --- | --- |
+| `GET /api/market/overview` | 标普、纳指、道指、VIX、BTC、ETH 概览 |
+| `GET /api/quotes` / `GET /api/quotes/:symbol` | 全市场和单标的行情 |
+| `GET /api/kline/:symbol` | K 线，美股走 Yahoo Chart，加密走 Binance |
+| `POST /api/trade/buy` / `POST /api/trade/sell` | 模拟盘买卖 |
+| `POST /api/orders` | 止盈止损/条件单 |
+| `POST /api/account/positions/import` | 批量录入已有持仓 |
+| `POST /api/intel/scan` / `POST /api/intel/analyze` | 情报扫描和深度解读 |
+| `GET /api/agent/*` | 策略、信号、方案、风控、回测 |
+| `GET /api/sse?channels=quotes,intel,agent,trade,system` | 实时推送 |
 
 ## 环境变量
 
@@ -39,47 +59,39 @@ npm run verify             # 端到端 API 冒烟（需先 npm start）
 
 | 变量 | 说明 |
 | --- | --- |
-| `LLM_API_KEY` | 分析师深度解读、英文情报标题批量翻译、Agent 信号（可选） |
-| `SEARCH_API_KEY` / `SEARCH_API_URL` | 扩展网页检索（可选） |
-| `LEOMONEY_PAPER_EXECUTION_ENABLED` | `true` 时允许模拟写入 |
-| `PORT` | 默认 `3210` |
+| `LLM_API_KEY` | DeepSeek/LLM 密钥；启用情报中文化、摘要、标的映射和 Agent 解读 |
+| `LLM_PROVIDER` / `LLM_MODEL` | 默认 `deepseek` / `deepseek-chat` |
+| `SEARCH_API_KEY` / `SEARCH_API_URL` | 可选扩展检索 |
+| `LEOMONEY_PAPER_EXECUTION_ENABLED` | 是否允许模拟盘写入 |
+| `LEOMONEY_AGENT_PAPER_EXECUTION_ENABLED` | Agent 直连写入默认关闭，建议走闸门 |
+| `LEOMONEY_ALLOWED_ORIGINS` | 本地含 `3210` 和 Vite `5174` |
 
-未配置 `LLM_API_KEY` 时：情报仍可用 **规则词表** 将常见英文标题转为中文；配置后英文标题会经 LLM 批量翻译，质量更好。
+未配置 `LLM_API_KEY` 时，情报仍可显示和规则摘要，但深度解读和高质量翻译会降级，界面会明确提示。
 
-## 主要界面
+## 项目结构
 
-- **总览** — 资产、K 线、快捷下单；顶栏可选 **计价单位**（CNY / USD / USDT / HKD）
-- **行情** — 权益 / 数字资产 / 宏观
-- **模拟交易** — 人工或自动化闸门
-- **分析师** — 策略与 Agent 配置
-- **分析师情报**（顶栏）— 实时头条、中文摘要、解读、信号
-
-## 分析师情报
-
-- **数据源**：Google News（中/英）、东方财富搜索、可选 Search API
-- **中文化**：`lib/intelTranslate.js` — 词表 + 可选 LLM 批量翻译；保留 `titleEn` 原文对照
-- **API**：`POST /api/intel/scan`、`POST /api/intel/analyze`、`GET /api/intel/feed`
-
-## 项目结构（节选）
-
-```
-lib/
-  intel.js, intelSources.js, intelTranslate.js   # 情报管线
-  quotes.js, binance.js, yahooUs.js              # 行情
-public/
-  css/leo-tokens.css, leo-app.css                  # 设计令牌与界面
-  js/zh-ui.js, intel-hub.js                        # 中文 UI + 情报面板
-src/server/routes/                               # REST API
+```text
+web/                         React + Vite + TypeScript 前端
+public/                      构建后的静态资源
+lib/quotes.js                多市场行情
+lib/intel.js                 情报扫描、订阅、标的映射
+lib/agent/                   策略、信号、风控、回测
+src/server/domain/           Decimal 账本、冻结、结算、状态机
+src/server/routes/           REST API
+src/server/services/         账户、交易、订单、汇总服务
 ```
 
 ## 版本
 
-**v3.3.0 — Leo Desk**
+**v4.0.0**
 
-- 品牌与文案中文化，统一排版令牌（`leo-tokens` / `leo-app`）
-- 情报面板可读性修复 + **英文头条自动中文化**
-- 全量 Binance 可交易对行情、计价单位切换
-- `npm run verify` 覆盖静态资源与情报 API
+- React/Vite/TypeScript 重构，旧单文件前端退场
+- 默认美股 + USD，恢复大盘条，纠正“权益”为“美股”
+- 新增完整交易、持仓、订单、资产、自选、情报、策略、提醒、设置页面
+- 新增持仓导入 API 和界面
+- 情报标题+摘要中文化，保留金融产品名英文，结构化关联标的
+- 美股 K 线接入 Yahoo Chart，加密 K 线接入 Binance
+- 移动端底部导航、暗/亮主题、涨跌配色可配置
 
 ## License
 

@@ -64,7 +64,7 @@ router.post('/agent/strategies/custom', (req, res) => {
   try {
     const { name, description, prompt } = req.body;
     if (!name || !prompt) return res.status(400).json({ success: false, error: '需要 name 和 prompt' });
-    const strategy = createCustomStrategy({ name, description: description || '', prompt });
+    const strategy = createCustomStrategy({ name, description: description || '', systemPrompt: prompt });
     res.json({ success: true, strategy });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });

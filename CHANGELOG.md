@@ -1,5 +1,41 @@
 # Changelog
 
+## v4.0.0 (2026-06-03) — V4 full product rebuild
+
+### Product
+
+- Rebuilt the frontend as `web/` React + Vite + TypeScript, built into `public/` for same-origin Express hosting.
+- Switched the product default to US stocks + USD, with crypto next and A/HK/commodities under more markets.
+- Restored the first-screen market overview strip with US indices, VIX, BTC and ETH.
+- Replaced the confusing "权益" label with "美股" across backend labels and tests.
+- Added full product navigation: dashboard, markets, symbol detail, trade, positions, orders, assets, watchlist, intel, agent, alerts and settings.
+- Added mobile bottom navigation, dark/light theme, USD/CNY/USDT/HKD display currency and configurable up/down colors.
+
+### Trading and portfolio
+
+- Added simple paper buy/sell ticket backed by `/api/trade/buy` and `/api/trade/sell`.
+- Added take-profit / stop-loss wording backed by conditional orders.
+- Added `POST /api/account/positions/import` for recording existing positions or deducting cash to seed positions.
+- Added holdings import UI, one-click close, orders page and recent fills.
+
+### Intel and strategy
+
+- Added structured related-symbol mapping to intel entries and LLM analysis, with quote validation.
+- Localized both titles and snippets, with persistent cache in `data/intel-cache.json`.
+- Added the rule that financial products, tickers, ETFs, indices, coin names and company names are not forcibly translated.
+- Added intel SSE updates and expanded strategy templates: trend following, mean reversion, grid hint and DCA.
+
+### Market data
+
+- Added `GET /api/market/overview`.
+- Added Yahoo Chart K-line support for US stocks.
+- Added data-quality and source freshness metadata for quote rendering.
+
+### Verification
+
+- Added V4 contract tests for position import.
+- Updated `npm run check`, `npm run verify`, README and environment documentation for V4.
+
 ## v3.1.0 (2026-05-23) — Commercial Beta hardening
 
 ### Product readiness

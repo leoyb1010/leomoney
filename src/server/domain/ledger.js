@@ -236,6 +236,63 @@ function settleSellFill(account, fill) {
   return { success: true, netProceeds: toMoney(netProceeds), fee, realizedPnl: toMoney(realizedPnl), newBalance: account.cash };
 }
 
+/**
+ * 录入既有持仓（不走撮合，用于把用户自己的真实持仓同步到模拟仓）
+ * @param {Object} account
+ * @param {Object} position { symbol, name, qty, avgCost, category, currency, meta }
+ * @returns {Object}
+ */
+function seedPosition(account, position) {
+  const symbol = String(position.symbol || '').trim().toUpperCase();
+  const qty = D(position.qty);
+  const avgCost = D(position.avgCost);
+  if (!symbol) throw new Error('symbol 不能为空');
+  if (qty.lte(0)) throw new Error('持仓数量必须大于0');
+  if (avgCost.lte(0)) throw new Error('持仓成本必须大于0');
+
+  migrateAccountIfNeeded(account);
+  _ensurePositionStructure(account, symbol);
+
+  const pos = account.positions[symbol];
+  const beforeQty = D(pos.totalQty || 0);
+  pos.avgCost = calcAvgCost(pos.avgCost || 0, beforeQty, avgCost, qty);
+  pos.totalQty = toQty(add(pos.totalQty || 0, qty), _getQtyScale(position.category || pos.category));
+  pos.sellableQty = toQty(add(pos.sellableQty || 0, qty), _getQtyScale(position.category || pos.category));
+  pos.name = position.name || pos.name || symbol;
+  pos.category = position.category || pos.category || 'usstocks';
+  pos.currency = position.currency || pos.currency || (pos.category === 'crypto' ? 'USD' : pos.category === 'hkstocks' ? 'HKD' : pos.category === 'astocks' ? 'CNY' : 'USD');
+  pos.importedAt = new Date().toISOString();
+  account.updatedAt = new Date().toISOString();
+
+  const unit = _getUnit(pos.category);
+  account.history.unshift({
+    type: 'position_import',
+    symbol,
+    name: pos.name,
+    price: toMoney(avgCost),
+    qty: toQty(qty, _getQtyScale(pos.category)),
+    total: toMoney(mul(avgCost, qty)),
+    fee: toMoney(0),
+    time: new Date().toISOString(),
+    category: pos.category,
+    currency: pos.currency,
+    unit,
+    settlementType: 'POSITION_IMPORTED',
+    ...(position.meta || {}),
+  });
+
+  _appendLedgerLog(account, 'SEED_POSITION', {
+    symbol,
+    qty: toQty(qty, _getQtyScale(pos.category)),
+    avgCost: toMoney(avgCost),
+    category: pos.category,
+    currency: pos.currency,
+    after: { ...pos },
+  });
+
+  return { success: true, position: pos };
+}
+
 // ── 账户结构迁移 ──
 
 /**
@@ -348,5 +405,6 @@ module.exports = {
   releasePosition,
   settleBuyFill,
   settleSellFill,
+  seedPosition,
   migrateAccountIfNeeded,
 };

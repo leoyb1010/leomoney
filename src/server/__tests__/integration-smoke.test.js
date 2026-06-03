@@ -24,13 +24,13 @@ describe('Integration smoke (offline)', () => {
   });
 
   it('display labels avoid exchange brands in UI copy', () => {
-    assert.equal(categoryLabel('usstocks'), '权益');
-    assert.equal(categoryLabel('crypto'), '数字资产');
+    assert.equal(categoryLabel('usstocks'), '美股');
+    assert.equal(categoryLabel('crypto'), '加密');
     assert.ok(!PRODUCT_TAGLINE.includes('币安'));
-    assert.ok(!PRODUCT_TAGLINE.includes('美股'));
+    assert.ok(PRODUCT_TAGLINE.includes('美股'));
     const qs = buildQuoteStatus({ us: { isOpen: true }, a: { isOpen: false } });
-    assert.equal(qs.usstocks.source, '权益行情');
-    assert.equal(qs.crypto.source, '数字资产行情');
+    assert.equal(qs.usstocks.source, '美股行情');
+    assert.equal(qs.crypto.source, '加密行情');
   });
 
   it('parses digital asset symbols', () => {

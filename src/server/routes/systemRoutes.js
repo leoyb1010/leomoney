@@ -28,8 +28,8 @@ router.get('/health', (req, res) => {
     service: 'leomoney-command-center',
     product: {
       name: runtime.productName,
-      identity: '个人模拟仓与分析师情报工作台',
-      tagline: '个人模拟仓 · 分析师工作台',
+      identity: '美股与加密个人模拟交易工作台',
+      tagline: '美股 · 加密 · 个人模拟仓',
       simulatedTradingOnly: runtime.simulatedTradingOnly,
       paperExecutionEnabled: runtime.paperExecutionEnabled,
       agentPaperExecutionEnabled: runtime.agentPaperExecutionEnabled,

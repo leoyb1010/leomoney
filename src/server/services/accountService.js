@@ -4,8 +4,9 @@
  */
 
 const { loadState, withStateTransaction, DEFAULT_BALANCE } = require('../repositories/stateRepository');
-const { migrateAccountIfNeeded } = require('../domain/ledger');
-const { toMoney } = require('../domain/money');
+const { migrateAccountIfNeeded, seedPosition } = require('../domain/ledger');
+const { toMoney, D, add, sub, mul, lt } = require('../domain/money');
+const { toCNY } = require('../domain/models');
 const crypto = require('crypto');
 
 function isActiveAccount(account) {
@@ -145,8 +146,85 @@ async function resetCurrentAccount() {
   });
 }
 
+async function importPositions({ mode = 'record', positions = [] }) {
+  const normalizedMode = mode === 'buy' ? 'buy' : 'record';
+  if (!Array.isArray(positions) || positions.length === 0) {
+    return { success: false, error: '请至少录入一条持仓' };
+  }
+  if (positions.length > 100) {
+    return { success: false, error: '单次最多导入 100 条持仓' };
+  }
+
+  return withStateTransaction((state) => {
+    const selected = getCurrentOrFirstActiveAccount(state);
+    if (!selected) return { success: false, error: '当前账户不存在' };
+    const [accountId, account] = selected;
+    migrateAccountIfNeeded(account);
+
+    let totalCostCny = D(0);
+    const imported = [];
+
+    for (const item of positions) {
+      const symbol = String(item.symbol || '').trim().toUpperCase();
+      const qty = D(item.qty || 0);
+      const avgCost = D(item.avgCost || 0);
+      const category = item.category || 'usstocks';
+      const currency = item.currency || (category === 'crypto' ? 'USD' : category === 'hkstocks' ? 'HKD' : category === 'astocks' ? 'CNY' : 'USD');
+      if (!symbol || qty.lte(0) || avgCost.lte(0)) {
+        return { success: false, error: `持仓录入不合法: ${symbol || '(空)'}` };
+      }
+
+      const costOrig = mul(qty, avgCost);
+      totalCostCny = add(totalCostCny, toCNY(Number(costOrig), currency));
+      imported.push({
+        symbol,
+        name: String(item.name || symbol).trim().slice(0, 80),
+        qty: qty.toNumber(),
+        avgCost: avgCost.toNumber(),
+        category,
+        currency,
+        meta: {
+          importMode: normalizedMode,
+          importedFrom: item.importedFrom || 'manual',
+          boughtAt: item.boughtAt || null,
+        },
+      });
+    }
+
+    if (normalizedMode === 'buy') {
+      if (lt(account.cash.available, totalCostCny)) {
+        return { success: false, error: `可用资金不足，可用=${account.cash.available}, 需扣减=${toMoney(totalCostCny)}` };
+      }
+      account.cash.available = toMoney(sub(account.cash.available, totalCostCny));
+      account.cash.total = toMoney(add(account.cash.available, account.cash.frozen || 0));
+    }
+
+    const results = imported.map(item => seedPosition(account, item));
+    account.ledgerLog.unshift({
+      type: 'IMPORT_POSITIONS',
+      data: {
+        mode: normalizedMode,
+        count: imported.length,
+        totalCostCny: toMoney(totalCostCny),
+      },
+      timestamp: new Date().toISOString(),
+    });
+    account.updatedAt = new Date().toISOString();
+
+    return {
+      success: true,
+      accountId,
+      mode: normalizedMode,
+      imported: results.map(r => r.position),
+      cash: account.cash,
+      totalCostCny: toMoney(totalCostCny),
+    };
+  });
+}
+
 module.exports = {
   getAccount, getAccountById, getAccounts,
   createAccount, switchAccount, updateAccount, deleteAccount, resetCurrentAccount,
+  importPositions,
   isActiveAccount,
 };

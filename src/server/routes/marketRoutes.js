@@ -6,6 +6,7 @@ const router = express.Router();
 const { getMarketStatus } = require('../../../lib/market');
 const { getQuotes, getStockQuote, searchSymbols, getApiHealth, getBinanceHealth } = require('../../../lib/quotes');
 const cryptoMarket = require('../../../lib/binance');
+const yahooUs = require('../../../lib/yahooUs');
 const { buildQuoteStatus } = require('../../../lib/displayLabels');
 const { parseSymbol } = require('../validation');
 
@@ -91,6 +92,48 @@ async function findQuoteAny(symbol) {
   };
 }
 
+async function buildMarketOverview() {
+  const quotes = await getQuotes();
+  const now = new Date().toISOString();
+  const yahooIndexSymbols = [
+    { symbol: '^GSPC', displaySymbol: 'SPX', name: 'S&P 500' },
+    { symbol: '^IXIC', displaySymbol: 'NASDAQ', name: 'Nasdaq Composite' },
+    { symbol: '^DJI', displaySymbol: 'DOW', name: 'Dow Jones' },
+    { symbol: '^VIX', displaySymbol: 'VIX', name: 'VIX' },
+  ];
+  const indexQuotes = await Promise.all(yahooIndexSymbols.map(async item => {
+    try {
+      const q = await yahooUs.fetchChart(item.symbol);
+      if (!q?.price) return null;
+      return {
+        ...q,
+        symbol: item.displaySymbol,
+        yahooSymbol: item.symbol,
+        name: item.name,
+        category: 'indices',
+        currency: 'USD',
+        asOf: now,
+        dataQuality: { isSynthetic: false, source: 'yahoo_chart', note: 'Yahoo Finance 公开 Chart API' },
+      };
+    } catch {
+      return null;
+    }
+  }));
+  const crypto = ['BTCUSDT', 'ETHUSDT'].map(sym => (quotes.crypto || []).find(q => q.symbol === sym)).filter(Boolean)
+    .map(q => ({ ...q, asOf: now }));
+  const fallbackIndices = (quotes.indices || []).slice(0, 3).map(q => ({ ...q, asOf: now }));
+  return {
+    success: true,
+    asOf: now,
+    indices: indexQuotes.filter(Boolean).length ? indexQuotes.filter(Boolean) : fallbackIndices,
+    crypto,
+    freshness: {
+      quoteTs: quotes.ts || Date.now(),
+      ageMs: quotes.ts ? Date.now() - quotes.ts : 0,
+    },
+  };
+}
+
 router.get('/market', (req, res) => {
   const health = getApiHealth();
   res.json({ success: true, ...getMarketStatus(), apiHealth: health });
@@ -102,6 +145,15 @@ router.get('/quotes', async (req, res) => {
     const market = getMarketStatus();
     const quoteStatus = buildQuoteStatus(market, { crypto: getBinanceHealth() });
     res.json({ success: true, ...quotes, market, quoteStatus });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/market/overview', async (req, res) => {
+  try {
+    const overview = await buildMarketOverview();
+    res.json(overview);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -133,6 +185,15 @@ router.get('/kline/:symbol', async (req, res) => {
       try {
         points = await cryptoMarket.getKlines(quote.symbol, scale, limit);
         if (points?.length) source = 'market_feed';
+      } catch {
+        points = null;
+      }
+    }
+    if (!points?.length && quote.category === 'usstocks') {
+      try {
+        const intervalMap = { 1: '1m', 5: '5m', 15: '15m', 30: '30m', 60: '60m' };
+        points = await yahooUs.getKlines(quote.symbol, intervalMap[scale] || '5m', '1d', limit);
+        if (points?.length) source = 'yahoo_chart';
       } catch {
         points = null;
       }

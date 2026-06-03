@@ -5,9 +5,10 @@ const express = require('express');
 const router = express.Router();
 const {
   getAccount, getAccounts, createAccount, switchAccount,
-  updateAccount, deleteAccount, resetCurrentAccount
+  updateAccount, deleteAccount, resetCurrentAccount, importPositions
 } = require('../services/accountService');
 const { getRuntimeConfig } = require('../config');
+const { parseBody } = require('../validation');
 
 router.get('/accounts', (req, res) => {
   res.json({ success: true, accounts: getAccounts(), currentAccountId: getAccount().accountId });
@@ -51,6 +52,13 @@ router.get('/account', (req, res) => {
 
 router.post('/account/reset', async (req, res) => {
   const result = await resetCurrentAccount();
+  res.status(result.success ? 200 : 400).json(result);
+});
+
+router.post('/account/positions/import', async (req, res) => {
+  const parsed = parseBody('positionImport', req.body || {});
+  if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.error, issues: parsed.issues });
+  const result = await importPositions(parsed.data);
   res.status(result.success ? 200 : 400).json(result);
 });
 
