@@ -43,7 +43,7 @@ import { ColorType, CandlestickSeries, createChart } from 'lightweight-charts';
 import { api, connectSse } from './api';
 import { t } from './i18n';
 import { useAppStore } from './store';
-import type { Category, Holding, IntelEntry, KlinePoint, Order, Quote, ResearchConfig, ResearchMemoryEntry, ResearchRun, Strategy, TradeRecord } from './types';
+import type { Category, Holding, IntelEntry, KlinePeriod, KlinePoint, Order, Quote, ResearchConfig, ResearchMemoryEntry, ResearchRun, Strategy, TradeRecord } from './types';
 import { ageText, categoryLabel, cx, money, moneyFromCny, pct, signed, toNumber, upClass } from './utils';
 
 const NAV_ITEMS = [
@@ -62,6 +62,16 @@ const NAV_ITEMS = [
 ];
 
 const PRIMARY_MOBILE = NAV_ITEMS.slice(0, 5);
+const KLINE_PERIODS: Array<{ value: KlinePeriod; label: string }> = [
+  { value: '1m', label: '1m' },
+  { value: '5m', label: '5m' },
+  { value: '15m', label: '15m' },
+  { value: '30m', label: '30m' },
+  { value: '1h', label: '1H' },
+  { value: '1D', label: '日K' },
+  { value: '1W', label: '周K' },
+  { value: '1M', label: '月K' },
+];
 
 function useBootData() {
   const setData = useAppStore(s => s.setData);
@@ -69,33 +79,51 @@ function useBootData() {
 
   async function refreshCore(silent = false) {
     try {
-      const [quotes, overview, summary, account, accounts, watchlist, intel] = await Promise.all([
-        api.quotes(),
-        api.marketOverview().catch(() => undefined),
+      const quotes = await api.quotes();
+      setData({ quotes });
+      const [overview, summary, account, accounts, watchlist, intel] = await Promise.allSettled([
+        api.marketOverview(),
         api.accountSummary(),
         api.account(),
         api.accounts(),
         api.watchlist(),
         api.intelFeed(30),
       ]);
-      setData({
-        quotes,
-        overview,
-        summary,
-        account,
-        accounts: accounts.accounts || [],
-        watchlist: watchlist.watchlist || [],
-        intel: intel.items || [],
-        llmReady: !!intel.llmReady,
-      });
+      const patch: Partial<ReturnType<typeof useAppStore.getState>> = {};
+      if (overview.status === 'fulfilled') patch.overview = overview.value;
+      if (summary.status === 'fulfilled') patch.summary = summary.value;
+      if (account.status === 'fulfilled') patch.account = account.value;
+      if (accounts.status === 'fulfilled') patch.accounts = accounts.value.accounts || [];
+      if (watchlist.status === 'fulfilled') patch.watchlist = watchlist.value.watchlist || [];
+      if (intel.status === 'fulfilled') {
+        patch.intel = intel.value.items || [];
+        patch.llmReady = !!intel.value.llmReady;
+      }
+      setData(patch);
     } catch (err: any) {
       if (!silent) notify(err.message || '刷新失败', 'error');
     }
   }
 
+  async function refreshMarketOnly(silent = true) {
+    try {
+      const [quotes, overview] = await Promise.allSettled([
+        api.quotes(),
+        api.marketOverview(),
+      ]);
+      const patch: Partial<ReturnType<typeof useAppStore.getState>> = {};
+      if (quotes.status === 'fulfilled') patch.quotes = quotes.value;
+      if (overview.status === 'fulfilled') patch.overview = overview.value;
+      setData(patch);
+    } catch (err: any) {
+      if (!silent) notify(err.message || '行情刷新失败', 'error');
+    }
+  }
+
   useEffect(() => {
     refreshCore();
-    const timer = window.setInterval(() => refreshCore(true), 8000);
+    const marketTimer = window.setInterval(() => refreshMarketOnly(true), 3500);
+    const coreTimer = window.setInterval(() => refreshCore(true), 30000);
     const sse = connectSse((event) => {
       try {
         const payload = JSON.parse(event.data);
@@ -110,7 +138,8 @@ function useBootData() {
       }
     });
     return () => {
-      window.clearInterval(timer);
+      window.clearInterval(marketTimer);
+      window.clearInterval(coreTimer);
       sse.close();
     };
   }, []);
@@ -220,6 +249,7 @@ function Topbar({ onRefresh }: { onRefresh: () => void }) {
   const theme = useAppStore(s => s.theme);
   const setPreference = useAppStore(s => s.setPreference);
   const summary = useAppStore(s => s.summary);
+  const quotes = useAppStore(s => s.quotes);
   return (
     <header className="topbar">
       <div className="mobileBrand">
@@ -228,6 +258,8 @@ function Topbar({ onRefresh }: { onRefresh: () => void }) {
       </div>
       <GlobalSearch />
       <div className="topActions">
+        <span className="livePill"><Activity size={14} />{ageText(quotes?.ts)}</span>
+        <AccountSwitcher />
         <span className="smallMetric">{moneyFromCny(summary?.totalAssets || 0, currency, summary?.rates)}</span>
         <select value={currency} onChange={e => setPreference({ currency: e.target.value as any })} aria-label="currency">
           <option value="USD">USD</option>
@@ -246,6 +278,47 @@ function Topbar({ onRefresh }: { onRefresh: () => void }) {
         </button>
       </div>
     </header>
+  );
+}
+
+function AccountSwitcher() {
+  const accounts = useAppStore(s => s.accounts);
+  const summary = useAppStore(s => s.summary);
+  const setData = useAppStore(s => s.setData);
+  const notify = useAppStore(s => s.notify);
+  const current = summary?.accountId || accounts[0]?.accountId || '';
+
+  async function switchTo(accountId: string) {
+    if (!accountId || accountId === current) return;
+    try {
+      await api.switchAccount(accountId);
+      const [nextAccounts, nextSummary, nextAccount, nextWatchlist] = await Promise.all([
+        api.accounts(),
+        api.accountSummary(),
+        api.account(),
+        api.watchlist(),
+      ]);
+      setData({
+        accounts: nextAccounts.accounts || [],
+        summary: nextSummary,
+        account: nextAccount,
+        watchlist: nextWatchlist.watchlist || [],
+      });
+      notify('账户已切换');
+    } catch (err: any) {
+      notify(err.message || '账户切换失败', 'error');
+    }
+  }
+
+  if (!accounts.length) return null;
+  return (
+    <select className="accountSelect" value={current} onChange={e => switchTo(e.target.value)} aria-label="account">
+      {accounts.map(account => (
+        <option key={account.accountId} value={account.accountId}>
+          {account.accountName || account.accountId}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -290,7 +363,7 @@ function GlobalSearch() {
 }
 
 function Page({ children }: { children: React.ReactNode }) {
-  return <motion.div className="page" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>{children}</motion.div>;
+  return <motion.div className="page" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18, ease: 'easeOut' }}>{children}</motion.div>;
 }
 
 function Dashboard() {
@@ -478,12 +551,15 @@ function SymbolDetail() {
   const symbol = decodeURIComponent(params.symbol || useAppStore.getState().selectedSymbol);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [points, setPoints] = useState<KlinePoint[]>([]);
-  const [scale, setScale] = useState(5);
+  const [period, setPeriod] = useState<KlinePeriod>('5m');
+  const [chartSource, setChartSource] = useState('');
   const intel = useAppStore(s => s.intel);
   useEffect(() => {
     api.quote(symbol).then(r => setQuote(r.quote)).catch(() => setQuote(null));
-    api.kline(symbol, scale, 160).then(r => setPoints(r.points)).catch(() => setPoints([]));
-  }, [symbol, scale]);
+    api.kline(symbol, period, period.endsWith('m') || period === '1h' ? 180 : 260)
+      .then(r => { setPoints(r.points); setChartSource(r.source); })
+      .catch(() => { setPoints([]); setChartSource(''); });
+  }, [symbol, period]);
   const relatedIntel = intel.filter(entry => entry.symbol === symbol || entry.related?.some(r => r.symbol === symbol)).slice(0, 5);
   return (
     <Page>
@@ -497,7 +573,14 @@ function SymbolDetail() {
       <div className="symbolGrid">
         <div className="panel wide">
           <div className="chartToolbar">
-            {[1, 5, 15, 30, 60].map(n => <button key={n} className={scale === n ? 'active' : ''} onClick={() => setScale(n)}>{n}m</button>)}
+            <div className="segmented compact">
+              {KLINE_PERIODS.map(item => (
+                <button key={item.value} className={period === item.value ? 'active' : ''} onClick={() => setPeriod(item.value)}>
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <span className="badge">{chartSource || 'loading'}</span>
           </div>
           <KlineChart points={points} />
         </div>

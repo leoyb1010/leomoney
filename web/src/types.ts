@@ -164,6 +164,8 @@ export interface KlinePoint {
   volume?: number;
 }
 
+export type KlinePeriod = '1m' | '5m' | '15m' | '30m' | '1h' | '1D' | '1W' | '1M';
+
 export interface RelatedSymbol {
   symbol: string;
   name: string;

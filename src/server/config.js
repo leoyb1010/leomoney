@@ -51,6 +51,8 @@ function getRuntimeConfig() {
     maxOrderPrice: parseNumber(process.env.LEOMONEY_MAX_ORDER_PRICE, 10000000, { min: 0.000001 }),
     llm: {
       provider: process.env.LLM_PROVIDER || 'deepseek',
+      baseUrl: process.env.LLM_BASE_URL || process.env.OPENAI_BASE_URL || null,
+      anthropicBaseUrl: process.env.LLM_ANTHROPIC_BASE_URL || null,
       model: process.env.LLM_MODEL || null,
       timeoutMs: parseNumber(process.env.LLM_TIMEOUT_MS, 30000, { min: 1000, max: 120000 }),
       maxRetries: parseNumber(process.env.LLM_MAX_RETRIES, 1, { min: 0, max: 5 }),

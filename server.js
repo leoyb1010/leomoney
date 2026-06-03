@@ -3,7 +3,16 @@
  * 轻路由层：只负责初始化、中间件、路由注册、静态资源、错误处理
  */
 
+const externalRuntimeEnv = {
+  PORT: process.env.PORT,
+  LEOMONEY_DATA_DIR: process.env.LEOMONEY_DATA_DIR,
+  LEOMONEY_RATE_LIMIT_MAX_REQUESTS: process.env.LEOMONEY_RATE_LIMIT_MAX_REQUESTS,
+  LEOMONEY_ALLOWED_ORIGINS: process.env.LEOMONEY_ALLOWED_ORIGINS,
+};
 require('dotenv').config({ override: true });
+for (const [key, value] of Object.entries(externalRuntimeEnv)) {
+  if (value !== undefined) process.env[key] = value;
+}
 
 const express = require('express');
 const path = require('path');

@@ -66,7 +66,9 @@ npm run verify      # API/静态资源冒烟，需先 npm start
 | 变量 | 说明 |
 | --- | --- |
 | `LLM_API_KEY` | DeepSeek/LLM 密钥；启用情报中文化、摘要、标的映射和 Agent 解读 |
-| `LLM_PROVIDER` / `LLM_MODEL` | 默认 `deepseek` / `deepseek-chat` |
+| `LLM_PROVIDER` / `LLM_BASE_URL` / `LLM_MODEL` | 默认 `deepseek` / `https://api.deepseek.com` / `deepseek-v4-flash` |
+| `LLM_QUICK_MODEL` / `LLM_DEEP_MODEL` | 全局快/深模型兜底，默认 `deepseek-v4-flash` / `deepseek-v4-pro` |
+| `LLM_ANTHROPIC_BASE_URL` | Anthropic 兼容入口，DeepSeek 为 `https://api.deepseek.com/anthropic` |
 | `RESEARCH_QUICK_MODEL` / `RESEARCH_DEEP_MODEL` | 研究室 quick/deep 模型，可与全局 LLM 模型分离 |
 | `RESEARCH_DEBATE_ROUNDS` / `RESEARCH_RISK_DISCUSS_ROUNDS` | 多空辩论和风控讨论轮数 |
 | `RESEARCH_DEFAULT_BENCHMARK_US` / `RESEARCH_DEFAULT_BENCHMARK_CRYPTO` | 美股/加密默认对比基准 |

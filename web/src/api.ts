@@ -44,9 +44,9 @@ export const api = {
   marketOverview: () => request<MarketOverview>('/api/market/overview'),
   quotes: () => request<QuotesPayload>('/api/quotes'),
   quote: (symbol: string) => request<{ success: boolean; quote: Quote }>(`/api/quotes/${encodeURIComponent(symbol)}`),
-  kline: (symbol: string, scale = 5, limit = 120) =>
-    request<{ success: boolean; symbol: string; quote: Quote; source: string; points: KlinePoint[] }>(
-      `/api/kline/${encodeURIComponent(symbol)}?scale=${scale}&limit=${limit}`
+  kline: (symbol: string, period = '5m', limit = 160) =>
+    request<{ success: boolean; symbol: string; quote: Quote; source: string; period: string; points: KlinePoint[] }>(
+      `/api/kline/${encodeURIComponent(symbol)}?period=${encodeURIComponent(period)}&limit=${limit}`
     ),
   search: (q: string) =>
     request<{ success: boolean; results: Quote[] }>(`/api/search?q=${encodeURIComponent(q)}`),
