@@ -28,9 +28,9 @@ export const 市场分类文字 = {
   all: '全部',
   astocks: 'A股',
   hkstocks: '港股',
-  usstocks: '美股',
-  metals: '贵金属',
-  crypto: '加密',
+  usstocks: '权益',
+  metals: '大宗',
+  crypto: '数字资产',
 };
 
 // 交易方向

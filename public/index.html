@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#0b1118">
+  <meta name="theme-color" content="#08090f">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>Leo &#x7F8E;&#x80A1;&#xB7;&#x5E01;&#x5B89; &#x6A21;&#x62DF;&#x4ED3;</title>
-  <link rel="stylesheet" href="/css/binance-theme.css">
+  <title>Leo Desk &#xB7; &#x4E2A;&#x4EBA;&#x6A21;&#x62DF;&#x4ED3;</title>
+  <link rel="stylesheet" href="/css/leo-desk.css">
   <style>
     :root {
       --bg: #070c14;
@@ -258,22 +258,23 @@
   <div class="layout">
     <header class="topbar">
       <div class="brand">
-        <div class="brand-mark">&#x25C6;</div>
+        <div class="brand-mark">研</div>
         <div>
-          <div class="brand-title">LeoMoney</div>
-          <div class="brand-sub">&#x6A21;&#x62DF;&#x4EA4;&#x6613;&#xB7;&#x7F8E;&#x80A1; + &#x5E01;&#x5B89;</div>
+          <div class="brand-title">Leo Desk</div>
+          <div class="brand-sub">&#x4E2A;&#x4EBA;&#x6A21;&#x62DF;&#x4ED3;</div>
+          <div class="brand-role"><span>&#x6A21;&#x62DF;&#x4ED3;</span><span>&#x5206;&#x6790;&#x5E08;</span></div>
         </div>
       </div>
       <div class="top-actions">
         <div class="intel-hub" id="intelHub">
           <button type="button" class="intel-trigger" id="intelTrigger" aria-expanded="false" aria-controls="intelPanel">
             <span class="intel-icon">&#x1F4E1;</span>
-            <span>&#x6D88;&#x606F;&#x5206;&#x6790;</span>
+            <span>&#x5206;&#x6790;&#x5E08;&#x60C5;&#x62A5;</span>
             <span class="intel-badge empty" id="intelBadge">0</span>
           </button>
           <div class="intel-panel" id="intelPanel" role="dialog" aria-label="&#x6D88;&#x606F;&#x5206;&#x6790;">
             <div class="intel-head">
-              <h2>&#x5B9E;&#x65F6;&#x60C5;&#x62A5; &#x00B7; Agent</h2>
+              <h2>&#x5206;&#x6790;&#x5E08;&#x60C5;&#x62A5;</h2>
               <span class="intel-llm" id="intelLlmTag">Agent --</span>
               <button type="button" class="btn" id="intelCloseBtn" style="min-height:28px;padding:0 8px">&#x2715;</button>
             </div>
@@ -283,8 +284,8 @@
             </div>
             <div class="intel-actions">
               <button type="button" class="btn" id="intelScanBtn">&#x5B9E;&#x65F6;&#x68C0;&#x7D22;</button>
-              <button type="button" class="btn primary" id="intelAnalyzeBtn">Agent &#x89E3;&#x8BFB;</button>
-              <button type="button" class="btn" id="intelAgentBtn">&#x4EA4;&#x6613;&#x4FE1;&#x53F7;</button>
+              <button type="button" class="btn primary" id="intelAnalyzeBtn">&#x6DF1;&#x5EA6;&#x89E3;&#x8BFB;</button>
+              <button type="button" class="btn" id="intelAgentBtn">&#x751F;&#x6210;&#x4FE1;&#x53F7;</button>
             </div>
             <div class="intel-watch-row">
               <input id="intelWatchInput" type="text" placeholder="&#x6DFB;&#x52A0;&#x6301;&#x7EED;&#x5173;&#x6CE8;&#xFF08;&#x81EA;&#x52A8;&#x8F6E;&#x8BE2;&#xFF09;">
@@ -317,21 +318,21 @@
       <nav class="nav">
         <button class="active" data-view="dashboard" type="button"><span class="nav-ico">&#x25C8;</span><span class="nav-txt">&#x603B;&#x89C8;</span></button>
         <button data-view="market" type="button"><span class="nav-ico">&#x25B2;</span><span class="nav-txt">&#x884C;&#x60C5;</span></button>
-        <button data-view="trade" type="button"><span class="nav-ico">&#x21C4;</span><span class="nav-txt">&#x4EA4;&#x6613;</span></button>
-        <button data-view="agent" type="button"><span class="nav-ico">AI</span><span class="nav-txt">&#x667A;&#x80FD;&#x4F53;</span></button>
-        <button data-view="replay" type="button"><span class="nav-ico">&#x23F1;</span><span class="nav-txt">&#x56DE;&#x653E;</span></button>
+        <button data-view="trade" type="button"><span class="nav-ico">&#x21C4;</span><span class="nav-txt">&#x6A21;&#x62DF;&#x4EA4;&#x6613;</span></button>
+        <button data-view="agent" type="button"><span class="nav-ico">&#x5206;</span><span class="nav-txt">&#x5206;&#x6790;&#x5E08;</span></button>
+        <button data-view="replay" type="button"><span class="nav-ico">&#x23F1;</span><span class="nav-txt">&#x5BA1;&#x8BA1;</span></button>
       </nav>
       <aside class="left">
         <div class="block">
           <div class="row"><h2>&#x5B9E;&#x65F6;&#x884C;&#x60C5;</h2><span id="quoteUpdated" class="muted mono">--</span></div>
           <div class="tabs" id="marketTabs">
-            <button class="tab" data-cat="all">&#x5168;&#x90E8;</button>
-            <button class="tab" data-cat="indices">&#x6307;&#x6570;</button>
-            <button class="tab" data-cat="astocks">A&#x80A1;</button>
-            <button class="tab" data-cat="hkstocks">&#x6E2F;&#x80A1;</button>
-            <button class="tab active" data-cat="usstocks">&#x7F8E;&#x80A1;</button>
-            <button class="tab" data-cat="metals">&#x8D35;&#x91D1;&#x5C5E;</button>
-            <button class="tab" data-cat="crypto">&#x52A0;&#x5BC6;</button>
+            <button class="tab active" data-cat="all">&#x5168;&#x90E8;</button>
+            <button class="tab" data-cat="usstocks">&#x6743;&#x76CA;</button>
+            <button class="tab" data-cat="crypto">&#x6570;&#x5B57;&#x8D44;&#x4EA7;</button>
+            <button class="tab" data-cat="indices">&#x5B8F;&#x89C2;</button>
+            <button class="tab hide-legacy-cat" data-cat="astocks">A&#x80A1;</button>
+            <button class="tab hide-legacy-cat" data-cat="hkstocks">&#x6E2F;&#x80A1;</button>
+            <button class="tab hide-legacy-cat" data-cat="metals">&#x5927;&#x5B97;</button>
           </div>
           <input class="search" id="quoteSearch" placeholder="&#x641C;&#x7D22;&#x540D;&#x79F0;&#x6216;&#x4EE3;&#x7801;">
           <div class="quote-list" id="quoteList"><div class="notice">&#x6B63;&#x5728;&#x52A0;&#x8F7D;&#x884C;&#x60C5;&#x3002;</div></div>
@@ -339,9 +340,13 @@
       </aside>
       <main class="center">
         <section class="view active" id="view-dashboard">
+          <div class="analyst-banner">
+            <h1>&#x4E2A;&#x4EBA;&#x6A21;&#x62DF;&#x4ED3; &#x00B7; &#x5206;&#x6790;&#x5E08;&#x5DE5;&#x4F5C;&#x53F0;</h1>
+            <p>&#x5B9E;&#x65F6;&#x884C;&#x60C5;&#x3001;&#x6A21;&#x62DF;&#x6210;&#x4EA4;&#x3001;&#x60C5;&#x62A5;&#x89E3;&#x8BFB;&#x4E0E;&#x4FE1;&#x53F7;&#x751F;&#x6210;&#x96C6;&#x4E8E;&#x4E00;&#x4F53;&#x3002;&#x4EC5;&#x7528;&#x4E8E;&#x7B56;&#x7565;&#x7814;&#x7A76;&#xFF0C;&#x4E0D;&#x6784;&#x6210;&#x6295;&#x8D44;&#x5EFA;&#x8BAE;&#x3002;</p>
+          </div>
           <div class="row">
-            <div><h1>&#x8D26;&#x6237;&#x603B;&#x89C8;</h1><p class="muted">&#x672C;&#x7CFB;&#x7EDF;&#x53EA;&#x7528;&#x4E8E;&#x6A21;&#x62DF;&#x4EA4;&#x6613;&#x548C;&#x7B56;&#x7565;&#x7814;&#x7A76;&#xFF0C;&#x6240;&#x6709;&#x81EA;&#x52A8;&#x6267;&#x884C;&#x90FD;&#x5FC5;&#x987B;&#x901A;&#x8FC7;&#x98CE;&#x63A7;&#x95F8;&#x95E8;&#x4E0E;&#x5BA1;&#x8BA1;&#x3002;</p></div>
-            <button class="btn primary" data-view-jump="trade">&#x53BB;&#x4EA4;&#x6613;</button>
+            <div><h2 style="font-size:15px;margin:0">&#x8D26;&#x6237;&#x603B;&#x89C8;</h2></div>
+            <button class="btn primary" data-view-jump="trade">&#x6A21;&#x62DF;&#x4E0B;&#x5355;</button>
           </div>
           <div class="cards metric-grid">
             <div class="card"><div class="label">&#x603B;&#x8D44;&#x4EA7;</div><div class="value" id="totalAssets">--</div><div class="sub">&#x73B0;&#x91D1; + &#x6301;&#x4ED3;&#x5E02;&#x503C;</div></div>
@@ -390,7 +395,8 @@
           </div>
         </section>
         <section class="view" id="view-agent">
-          <h1>&#x667A;&#x80FD;&#x4F53;&#x63A7;&#x5236;</h1>
+          <h1>&#x5206;&#x6790;&#x5E08;&#x63A7;&#x5236;&#x53F0;</h1>
+          <p class="muted" style="margin:6px 0 14px">&#x914D;&#x7F6E;&#x81EA;&#x52A8;&#x5206;&#x6790;&#x7B56;&#x7565;&#x3001;&#x626B;&#x63CF;&#x9891;&#x7387;&#x4E0E;&#x98CE;&#x63A7;&#x7B49;&#x7EA7;&#x3002;&#x60C5;&#x62A5;&#x8BF7;&#x7528;&#x9876;&#x680F;&#x300C;&#x5206;&#x6790;&#x5E08;&#x60C5;&#x62A5;&#x300D;&#x3002;</p>
           <div class="cards" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="card"><div class="label">&#x542F;&#x7528;&#x72B6;&#x6001;</div><div class="value" id="agentEnabled">--</div></div><div class="card"><div class="label">&#x5F53;&#x524D;&#x7B56;&#x7565;</div><div class="value" id="agentStrategy">--</div></div><div class="card"><div class="label">&#x5927;&#x6A21;&#x578B;</div><div class="value" id="llmState">--</div></div></div>
           <div class="cards" style="grid-template-columns:repeat(2,minmax(0,1fr))">
             <div class="card"><h2>&#x8FD0;&#x884C;&#x914D;&#x7F6E;</h2><div class="form-grid" style="margin-top:12px"><div class="field"><label>&#x662F;&#x5426;&#x542F;&#x7528;</label><select id="agentEnabledInput"><option value="false">&#x5173;&#x95ED;</option><option value="true">&#x542F;&#x7528;</option></select></div><div class="field"><label>&#x5B89;&#x5168;&#x7B49;&#x7EA7;</label><select id="agentLevelInput"><option value="1">L1 &#x53EA;&#x76D1;&#x63A7;</option><option value="2">L2 &#x751F;&#x6210;&#x65B9;&#x6848;</option><option value="3">L3 &#x5199;&#x5165;&#x6A21;&#x62DF;&#x76D8;</option></select></div></div><div class="field"><label>&#x7B56;&#x7565;</label><select id="agentStrategyInput"></select></div><div class="form-grid"><div class="field"><label>&#x4FE1;&#x53F7;&#x626B;&#x63CF;&#x95F4;&#x9694;&#xFF08;&#x79D2;&#xFF09;</label><input id="agentScanInput" type="number" min="30" value="60"></div><div class="field"><label>&#x7B56;&#x7565;&#x68C0;&#x67E5;&#x95F4;&#x9694;&#xFF08;&#x79D2;&#xFF09;</label><input id="agentStrategyIntervalInput" type="number" min="60" value="120"></div></div><button class="btn primary full" id="saveAgentBtn">&#x4FDD;&#x5B58;&#x667A;&#x80FD;&#x4F53;&#x914D;&#x7F6E;</button></div>
@@ -400,7 +406,7 @@
         <section class="view" id="view-replay"><h1>&#x5BA1;&#x8BA1;&#x56DE;&#x653E;</h1><p class="muted" style="margin:6px 0 14px">&#x6BCF;&#x6B21;&#x81EA;&#x52A8;&#x5316;&#x90FD;&#x4F1A;&#x5199;&#x5165;&#x9ED1;&#x5323;&#x5B50;&#xFF0C;&#x8FD9;&#x91CC;&#x53EA;&#x663E;&#x793A;&#x4E2D;&#x6587;&#x6458;&#x8981;&#x3002;</p><div class="card"><div class="audit-list" id="auditCenterList"></div></div></section>
       </main>
       <aside class="right">
-        <div class="block"><div class="row"><h2>&#x98CE;&#x63A7;&#x96F7;&#x8FBE;</h2><span id="riskBadge" class="muted">--</span></div><div class="notice" id="riskPanel" style="margin-top:10px">&#x6B63;&#x5728;&#x8BFB;&#x53D6;&#x98CE;&#x63A7;&#x72B6;&#x6001;&#x3002;</div></div>
+        <div class="block"><div class="row"><h2>&#x5206;&#x6790;&#x5E08;&#x98CE;&#x63A7;</h2><span id="riskBadge" class="muted">--</span></div><div class="notice" id="riskPanel" style="margin-top:10px">&#x6B63;&#x5728;&#x8BFB;&#x53D6;&#x98CE;&#x63A7;&#x72B6;&#x6001;&#x3002;</div><div class="disclaimer">&#x6A21;&#x62DF;&#x4ED3;&#x4E0D;&#x63A5;&#x5B9E;&#x76D8;&#x3002;&#x60C5;&#x62A5;&#x6765;&#x81EA;&#x516C;&#x5F00;&#x6E90;&#x3002;</div></div>
         <div class="block"><div class="row"><h2>&#x6700;&#x8FD1;&#x81EA;&#x52A8;&#x5316;&#x8BB0;&#x5F55;</h2><button class="btn" id="auditRefreshBtn">&#x5237;&#x65B0;</button></div><div class="audit-list" id="auditList" style="margin-top:10px"></div></div>
         <div class="block"><h2>&#x5F53;&#x524D;&#x6301;&#x4ED3;</h2><table style="margin-top:10px"><thead><tr><th>&#x6807;&#x7684;</th><th>&#x6570;&#x91CF;</th><th>&#x6D6E;&#x76C8;&#x4E8F;</th></tr></thead><tbody id="holdingsBody"></tbody></table></div>
       </aside>
@@ -437,7 +443,7 @@
     function flattenQuotes(data) { return [ ...(data.indices || []).map(x => ({ ...x, symbol: x.sinaCode || x.code || x.id, displaySymbol: x.code || x.id || x.sinaCode, category: "indices" })), ...(data.astocks || []), ...(data.hkstocks || []), ...(data.usstocks || []), ...(data.metals || []), ...(data.crypto || []) ].filter(x => Number(x.price) > 0); }
     function renderQuoteList() { const list = $("quoteList"); const q = $("quoteSearch").value.trim().toLowerCase(); const rows = app.quotes.filter(item => app.activeCategory === "all" || item.category === app.activeCategory).filter(item => !q || String(displayCode(item)).toLowerCase().includes(q) || String(item.name).toLowerCase().includes(q)).slice(0, 80); list.innerHTML = ""; if (!rows.length) { list.innerHTML = `<div class="notice">${Z.noQuote}</div>`; return; } for (const item of rows) { const change = Number(item.changePercent ?? 0); const cls = change >= 0 ? "green" : "red"; const btn = document.createElement("button"); btn.className = `quote-item ${quoteKey(app.selected || {}) === quoteKey(item) ? "active" : ""}`; btn.innerHTML = `<span><span class="quote-name">${item.name || displayCode(item)}</span><span class="quote-meta mono">${displayCode(item)} \u00b7 ${marketName(item.category)}</span></span><span class="quote-price mono">${price(item.price)}<span class="quote-change ${cls}">${pct(change)}</span></span>`; btn.addEventListener("click", () => selectQuote(item)); list.appendChild(btn); } }
     async function loadQuotes() { const data = await api("/api/quotes"); app.quotes = flattenQuotes(data); $("quoteUpdated").textContent = new Date(data.quoteStatus?.lastUpdate || Date.now()).toLocaleTimeString(); renderQuoteList(); renderMarketStatus(data); if (!app.selected && app.quotes.length) selectQuote(app.quotes[0]); }
-    function renderMarketStatus(data) { const body = $("marketStatusBody"); const status = data.quoteStatus || {}; const rows = [[Z.astock, data.market?.a?.status, "\u65b0\u6d6a\u5b9e\u65f6", status.lastUpdate], [Z.hk, data.market?.hk?.status, "\u65b0\u6d6a\u5b9e\u65f6", status.lastUpdate], [Z.us, data.market?.us?.status, "\u65b0\u6d6a\u5b9e\u65f6", status.lastUpdate], [Z.metal, status.metals?.status || "\u5468\u671f\u5237\u65b0", "\u65b0\u6d6a\u671f\u8d27/\u6a21\u62df", status.lastUpdate], [Z.crypto, status.crypto?.status || "\u6a21\u62df\u5237\u65b0", "\u65b0\u6d6a\u671f\u8d27/\u6a21\u62df", status.lastUpdate]]; body.innerHTML = rows.map(r => `<tr><td>${r[0]}</td><td>${r[1] || "--"}</td><td>${r[2] || "--"}</td><td class="mono">${r[3] ? new Date(r[3]).toLocaleTimeString() : "--"}</td></tr>`).join(""); }
+    function renderMarketStatus(data) { const body = $("marketStatusBody"); const status = data.quoteStatus || {}; const rows = [[Z.us, data.market?.us?.status, status.usstocks?.source, status.lastUpdate], [Z.crypto, status.crypto?.status, status.crypto?.source, status.lastUpdate], [Z.index, data.market?.a?.status, status.indices?.source, status.lastUpdate]]; body.innerHTML = rows.map(r => `<tr><td>${r[0]}</td><td>${r[1] || "--"}</td><td>${r[2] || "--"}</td><td class="mono">${r[3] ? new Date(r[3]).toLocaleTimeString() : "--"}</td></tr>`).join(""); }
     async function selectQuote(item) { app.selected = item; $("symbolInput").value = quoteKey(item); const sym = displayCode(item); if ($("intelSymbol")) $("intelSymbol").value = sym; if ($("intelQuery") && !$("intelQuery").value) $("intelQuery").value = item.name || sym; updateSelectedQuote(item); renderQuoteList(); await loadKline(quoteKey(item)); }
     function updateSelectedQuote(item) { const change = Number(item.change ?? (Number(item.price) - Number(item.prevClose || item.price))); const changePct = Number(item.changePercent ?? 0); const cls = change >= 0 ? "green" : "red"; $("stockName").textContent = item.name || displayCode(item); $("stockCode").textContent = `${displayCode(item)} \u00b7 ${marketName(item.category)} \u00b7 ${item.currency || "CNY"}`; $("stockPrice").textContent = price(item.price); $("stockPrice").className = `big-price mono ${cls}`; $("stockChange").textContent = `${change >= 0 ? "+" : ""}${price(change)} (${pct(changePct)})`; $("stockChange").className = `mono ${cls}`; $("statOpen").textContent = price(item.open); $("statHigh").textContent = price(item.high); $("statLow").textContent = price(item.low); $("statPrev").textContent = price(item.prevClose); $("chartTitle").textContent = `${item.name || displayCode(item)} K\u7ebf\u56fe`; }
     async function loadKline(symbol) { try { const data = await api(`/api/kline/${encodeURIComponent(symbol)}?scale=5&limit=80`); $("chartSource").textContent = data.source === "sina_minute" ? Z.sourceSina : Z.sourcePreview; drawKline(data.points || []); } catch (err) { $("chartSource").textContent = `K\u7ebf\u52a0\u8f7d\u5931\u8d25\uff1a${err.message}`; drawKline([]); } }

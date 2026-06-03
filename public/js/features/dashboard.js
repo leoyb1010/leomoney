@@ -5,7 +5,7 @@ import { store } from './store.js';
 import { apiGet } from './api.js';
 import { fmtMoney, fmtPct, fmtQty } from './format.js';
 
-const CAT_LABELS = { astocks:'A股', hkstocks:'港股', usstocks:'美股', metals:'贵金属', crypto:'加密' };
+const CAT_LABELS = { astocks:'A股', hkstocks:'港股', usstocks:'权益', metals:'大宗', crypto:'数字资产' };
 
 // ── Dashboard 总览 ──────────────────────────────────────────
 export async function renderDashboard() {

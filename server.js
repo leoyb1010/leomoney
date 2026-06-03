@@ -93,9 +93,9 @@ function startServer(runtimeConfig = getRuntimeConfig()) {
     console.warn('   ⚠️  完整性检查异常:', e.message);
   }
 
-  console.log(`\n🦁 Leomoney v${pkg.version} 已启动`);
+  console.log(`\n📊 Leo Desk v${pkg.version} 已启动 — 个人模拟仓 · 分析师`);
   console.log(`   地址: http://localhost:${runtimeConfig.port}`);
-  console.log(`   A股: ${status.a.status} | 港股: ${status.hk.status} | 美股: ${status.us.status} | 加密: ${status.crypto.status}`);
+  console.log(`   权益: ${status.us.status} | 数字资产: ${status.crypto.status} | 宏观: ${status.a.status}`);
   console.log(`   CLI:  node cli.js --help`);
 
   // 启动后台调度器（条件单自动触发 + 策略扫描）

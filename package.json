@@ -1,14 +1,16 @@
 {
   "name": "leomoney",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "private": true,
-  "description": "LeoMoney - US stocks & Binance real-time paper trading",
+  "description": "Leo Desk — personal paper trading desk with analyst intel",
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
     "cli": "node cli.js",
-    "test": "node --test \"src/server/domain/__tests__/*.test.js\" \"src/server/__tests__/*.test.js\"",
+    "test": "node --test \"src/server/domain/__tests__/*.test.js\" \"src/server/__tests__/*.test.js\" \"src/server/__tests__/integration-smoke.test.js\"",
+    "test:integration": "node --test \"src/server/__tests__/integration-smoke.test.js\"",
     "check": "node --check server.js && node --check scripts/secret-scan.js && npm run test && npm run security:secrets",
+    "verify": "bash scripts/verify.sh",
     "find:mojibake": "node scripts/find-mojibake.js",
     "security:secrets": "node scripts/secret-scan.js"
   },

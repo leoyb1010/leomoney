@@ -27,7 +27,7 @@ export function getCategoryRules(category) {
     case 'crypto': return { unit: '枚', step: 0.01, minQty: 0.01, multiple: false, label: '加密' };
     case 'metals': return { unit: '盎司', step: 1, minQty: 1, multiple: false, label: '贵金属' };
     case 'hkstocks': return { unit: '股', step: 100, minQty: 100, multiple: true, label: '港股' };
-    case 'usstocks': return { unit: '股', step: 1, minQty: 1, multiple: false, label: '美股' };
+    case 'usstocks': return { unit: '股', step: 1, minQty: 1, multiple: false, label: '权益' };
     default: return { unit: '股', step: 100, minQty: 100, multiple: true, label: 'A股' };
   }
 }

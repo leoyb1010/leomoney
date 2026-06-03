@@ -28,7 +28,8 @@ router.get('/health', (req, res) => {
     service: 'leomoney-command-center',
     product: {
       name: runtime.productName,
-      identity: 'AI-driven simulated trading / research command center',
+      identity: 'Personal paper trading desk with analyst intel',
+      tagline: '个人模拟仓 · 分析师工作台',
       simulatedTradingOnly: runtime.simulatedTradingOnly,
       paperExecutionEnabled: runtime.paperExecutionEnabled,
       agentPaperExecutionEnabled: runtime.agentPaperExecutionEnabled,
