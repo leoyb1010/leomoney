@@ -166,6 +166,30 @@ export interface KlinePoint {
 
 export type KlinePeriod = '1m' | '5m' | '15m' | '30m' | '1h' | '1D' | '1W' | '1M';
 
+export interface KlineResponse {
+  success: boolean;
+  symbol: string;
+  quote: Quote;
+  source: string;
+  provider?: string;
+  providerTier?: string;
+  period: string;
+  points: KlinePoint[];
+  cached?: boolean;
+  fallback?: boolean;
+  cacheAgeMs?: number;
+  cacheTtlMs?: number;
+  diagnostics?: Array<{
+    id: string;
+    source: string;
+    tier: string;
+    ok: boolean;
+    skipped?: boolean;
+    reason?: string | null;
+    latencyMs?: number;
+  }>;
+}
+
 export interface RelatedSymbol {
   symbol: string;
   name: string;

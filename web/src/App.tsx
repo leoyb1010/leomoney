@@ -552,13 +552,20 @@ function SymbolDetail() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [points, setPoints] = useState<KlinePoint[]>([]);
   const [period, setPeriod] = useState<KlinePeriod>('1D');
-  const [chartSource, setChartSource] = useState('');
+  const [chartSource, setChartSource] = useState<{ label: string; title: string }>({ label: '', title: '' });
   const intel = useAppStore(s => s.intel);
   useEffect(() => {
     api.quote(symbol).then(r => setQuote(r.quote)).catch(() => setQuote(null));
     api.kline(symbol, period, period.endsWith('m') || period === '1h' ? 180 : 260)
-      .then(r => { setPoints(r.points); setChartSource(r.source); })
-      .catch(() => { setPoints([]); setChartSource('no data'); });
+      .then(r => {
+        const suffix = [r.cached ? '缓存' : '', r.fallback ? '降级' : ''].filter(Boolean).join(' · ');
+        setPoints(r.points);
+        setChartSource({
+          label: suffix ? `${r.source} · ${suffix}` : r.source,
+          title: (r.diagnostics || []).map(d => `${d.id}:${d.ok ? 'ok' : d.reason || 'skip'}:${d.latencyMs || 0}ms`).join('\n'),
+        });
+      })
+      .catch(() => { setPoints([]); setChartSource({ label: 'no data', title: '' }); });
   }, [symbol, period]);
   const relatedIntel = intel.filter(entry => entry.symbol === symbol || entry.related?.some(r => r.symbol === symbol)).slice(0, 5);
   return (
@@ -580,7 +587,7 @@ function SymbolDetail() {
                 </button>
               ))}
             </div>
-            <span className="badge">{chartSource || 'loading'}</span>
+            <span className="badge" title={chartSource.title}>{chartSource.label || 'loading'}</span>
           </div>
           <KlineChart points={points} />
         </div>

@@ -45,8 +45,9 @@ npm run verify      # API/静态资源冒烟，需先 npm start
 | API | 用途 |
 | --- | --- |
 | `GET /api/market/overview` | 标普、纳指、道指、VIX、BTC、ETH 概览 |
+| `GET /api/market/providers` | 行情 provider 链、免费/付费源目录、配置状态、K 线缓存状态 |
 | `GET /api/quotes` / `GET /api/quotes/:symbol` | 全市场和单标的行情 |
-| `GET /api/kline/:symbol` | K 线，美股走 Yahoo Chart，加密走 Binance |
+| `GET /api/kline/:symbol` | K 线，多 provider 链路，返回 source/provider/diagnostics/cache/fallback |
 | `POST /api/trade/buy` / `POST /api/trade/sell` | 模拟盘买卖 |
 | `POST /api/orders` | 止盈止损/条件单 |
 | `POST /api/account/positions/import` | 批量录入已有持仓 |
@@ -73,6 +74,8 @@ npm run verify      # API/静态资源冒烟，需先 npm start
 | `RESEARCH_DEBATE_ROUNDS` / `RESEARCH_RISK_DISCUSS_ROUNDS` | 多空辩论和风控讨论轮数 |
 | `RESEARCH_DEFAULT_BENCHMARK_US` / `RESEARCH_DEFAULT_BENCHMARK_CRYPTO` | 美股/加密默认对比基准 |
 | `SEARCH_API_KEY` / `SEARCH_API_URL` | 可选扩展检索 |
+| `MARKET_DATA_PREFERRED_PROVIDER` / `MARKET_DATA_KLINE_CACHE_TTL_MS` | 行情 provider 偏好和 K 线缓存 TTL，默认免费源优先 |
+| `ALPACA_API_KEY` / `POLYGON_API_KEY` / `TWELVE_DATA_API_KEY` 等 | 付费行情源预留配置，费用和适用场景见 `docs/market-data-providers.md` |
 | `LEOMONEY_PAPER_EXECUTION_ENABLED` | 是否允许模拟盘写入 |
 | `LEOMONEY_AGENT_PAPER_EXECUTION_ENABLED` | Agent 直连写入默认关闭，建议走闸门 |
 | `LEOMONEY_ALLOWED_ORIGINS` | 本地含 `3210` 和 Vite `5174` |
@@ -85,6 +88,7 @@ npm run verify      # API/静态资源冒烟，需先 npm start
 web/                         React + Vite + TypeScript 前端
 public/                      构建后的静态资源
 lib/quotes.js                多市场行情
+lib/marketData/              行情 provider 目录、K 线链路、缓存和付费源配置
 lib/intel.js                 情报扫描、订阅、标的映射
 lib/agent/                   策略、信号、风控、回测
 src/server/domain/           Decimal 账本、冻结、结算、状态机

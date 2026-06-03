@@ -4,7 +4,7 @@ import type {
   AccountSummary,
   AgentStatus,
   IntelEntry,
-  KlinePoint,
+  KlineResponse,
   MarketOverview,
   Order,
   Quote,
@@ -45,7 +45,7 @@ export const api = {
   quotes: () => request<QuotesPayload>('/api/quotes'),
   quote: (symbol: string) => request<{ success: boolean; quote: Quote }>(`/api/quotes/${encodeURIComponent(symbol)}`),
   kline: (symbol: string, period = '5m', limit = 160) =>
-    request<{ success: boolean; symbol: string; quote: Quote; source: string; period: string; points: KlinePoint[] }>(
+    request<KlineResponse>(
       `/api/kline/${encodeURIComponent(symbol)}?period=${encodeURIComponent(period)}&limit=${limit}`
     ),
   search: (q: string) =>
