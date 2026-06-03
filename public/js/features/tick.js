@@ -14,7 +14,7 @@ let tickInterval = null;
 
 export function startTick() {
   if (tickInterval) clearInterval(tickInterval);
-  tickInterval = setInterval(tick, 5000);
+  tickInterval = setInterval(tick, 3000);
 }
 
 export function stopTick() {

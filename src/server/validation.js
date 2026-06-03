@@ -1,7 +1,7 @@
 const { z } = require('zod');
 const { getRuntimeConfig } = require('./config');
 
-const SYMBOL_PATTERN = /^[A-Za-z0-9._:-]{1,32}$/;
+const SYMBOL_PATTERN = /^[A-Za-z0-9._:-]{1,48}$/;
 const RUN_ID_PATTERN = /^[A-Za-z0-9._:-]{1,96}$/;
 const CATEGORY_VALUES = ['indices', 'astocks', 'hkstocks', 'usstocks', 'metals', 'crypto'];
 const AUTOMATION_MODES = ['dry_run', 'simulation_only', 'paper_execution'];
@@ -21,7 +21,7 @@ function numberWithin(name, max) {
 
 function schemas() {
   const config = getRuntimeConfig();
-  const symbol = z.string().trim().min(1, '缺少参数: symbol').max(32, 'symbol 过长').regex(SYMBOL_PATTERN, 'symbol 只能包含字母、数字、点、下划线、冒号或短横线');
+  const symbol = z.string().trim().min(1, '缺少参数: symbol').max(48, 'symbol 过长').regex(SYMBOL_PATTERN, 'symbol 只能包含字母、数字、点、下划线、冒号或短横线');
   const runId = z.string().trim().min(1).max(96).regex(RUN_ID_PATTERN).optional();
 
   const tradePayload = z.object({

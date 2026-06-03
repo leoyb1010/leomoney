@@ -4,7 +4,8 @@
 const express = require('express');
 const router = express.Router();
 const { getMarketStatus } = require('../../../lib/market');
-const { getQuotes, getStockQuote, searchSymbols, getApiHealth } = require('../../../lib/quotes');
+const { getQuotes, getStockQuote, searchSymbols, getApiHealth, getBinanceHealth } = require('../../../lib/quotes');
+const binance = require('../../../lib/binance');
 const { parseSymbol } = require('../validation');
 
 function buildFallbackKline(quote, count = 48) {
@@ -102,9 +103,12 @@ router.get('/quotes', async (req, res) => {
       lastUpdate: new Date().toISOString(),
       astocks: { source: '新浪实时', status: market.a.isOpen ? '实时刷新' : '休市冻结' },
       hkstocks: { source: '新浪实时', status: market.hk.isOpen ? '实时刷新' : '休市冻结' },
-      usstocks: { source: '新浪实时', status: market.us.isOpen ? '实时刷新' : '休市冻结' },
+      usstocks: { source: 'Yahoo + 新浪', status: market.us.isOpen ? '实时刷新' : '休市冻结' },
       metals: { source: '新浪期货/模拟', status: '周期刷新' },
-      crypto: { source: '新浪期货/模拟波动', status: market.crypto.isOpen ? '模拟刷新' : '模拟刷新' },
+      crypto: {
+        source: 'Binance 实时',
+        status: getBinanceHealth().ok ? '实时刷新' : `不可用: ${getBinanceHealth().lastError || '网络'}`,
+      },
     };
     res.json({ success: true, ...quotes, market, quoteStatus });
   } catch (err) {
@@ -134,11 +138,21 @@ router.get('/kline/:symbol', async (req, res) => {
     const limit = Math.min(Math.max(Number(req.query.limit || 80), 20), 240);
     let points = null;
     let source = 'local_preview';
-    try {
-      points = await fetchSinaMinuteKline(quote, scale, limit);
-      if (points?.length) source = 'sina_minute';
-    } catch {
-      points = null;
+    if (quote.category === 'crypto' || binance.isCryptoLike(quote.symbol)) {
+      try {
+        points = await binance.getKlines(quote.symbol, scale, limit);
+        if (points?.length) source = 'binance';
+      } catch {
+        points = null;
+      }
+    }
+    if (!points?.length) {
+      try {
+        points = await fetchSinaMinuteKline(quote, scale, limit);
+        if (points?.length) source = 'sina_minute';
+      } catch {
+        points = null;
+      }
     }
     if (!points?.length) points = buildFallbackKline(quote, limit);
     res.json({

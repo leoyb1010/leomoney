@@ -17,7 +17,7 @@ export const store = {
   fxRates: { CNY: 1, USD: 7.25, HKD: 0.93 },
   currentView: 'quotes',
   currentListMode: 'hot',
-  currentMarketCat: 'all',
+  currentMarketCat: 'usstocks',
   selectedStock: null,
   selectedIndex: null,
   tradeType: 'buy',

@@ -1,8 +1,23 @@
 # LeoMoney
 
-LeoMoney 是一套面向个人投资者和量化研究者的 AI-Native 模拟交易系统。当前版本已经升级为中文交易指挥舱，覆盖实时行情、K 线、模拟交易、多账户、Agent 风控、自动化执行闸门、审计日志和决策回放。
+LeoMoney 是 **Leo 个人美股 + 币安全市场模拟仓**：行情必须来自实时数据源（美股 Yahoo Finance、加密 Binance 公开 API），本地仅做模拟成交，不涉及真实下单。
 
-> 重要提示：本项目用于模拟交易、策略研究和自动化实验，不构成投资建议，也不应直接替代真实交易风控。
+同时保留 A 股/港股/贵金属等模块，便于对照；默认界面聚焦 **美股** 与 **加密（现货 + USDT 永续，搜索覆盖 Binance 可交易目录）**。
+
+> 重要提示：本项目仅用于模拟交易与策略研究，不构成投资建议。Binance 接口在部分网络环境需代理/VPN 方可访问。
+
+## v3.2 美股·币安专项
+
+| 市场 | 实时数据源 | 说明 |
+| --- | --- | --- |
+| 美股 | Yahoo Finance + 新浪 `gb_` 备用 | 搜索任意美股代码，如 `AAPL`、`NVDA` |
+| 加密现货 | `api.binance.com` | 符号如 `BTCUSDT`、`SOLUSDT` |
+| USDT 永续 | `fapi.binance.com` | 符号加后缀 `.P`，如 `BTCUSDT.P` |
+| 币本位永续 | `dapi.binance.com` | 搜索命中后可选 |
+
+- 行情缓存约 **2 秒**；前端/SSE 约 **3 秒** 刷新
+- **禁止** 对加密使用模拟价格波动；Binance 不可用时界面显示不可用
+- 移动端：`viewport-fit=cover`、底部 Tab、安全区边距，适配手机/折叠屏
 
 ![LeoMoney Screenshot](screenshot.png)
 
