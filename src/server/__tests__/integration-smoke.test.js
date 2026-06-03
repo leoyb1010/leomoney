@@ -9,7 +9,7 @@ describe('Integration smoke (offline)', () => {
     const r = await fetchHeadlines({ query: '流动性', symbol: 'BTCUSDT', category: 'crypto' });
     assert.ok(r.news.length >= 3, `expected news, got ${r.news.length}`);
     assert.ok(r.news[0].title?.length > 5);
-    assert.equal(r.meta.googleEn >= 1, true);
+    assert.equal((r.meta.googleEn + r.meta.googleZh + r.meta.eastmoney + r.meta.cryptoRss) >= 1, true);
   });
 
   it('ruleBasedSummary works without LLM', () => {

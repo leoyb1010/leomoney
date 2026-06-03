@@ -551,14 +551,14 @@ function SymbolDetail() {
   const symbol = decodeURIComponent(params.symbol || useAppStore.getState().selectedSymbol);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [points, setPoints] = useState<KlinePoint[]>([]);
-  const [period, setPeriod] = useState<KlinePeriod>('5m');
+  const [period, setPeriod] = useState<KlinePeriod>('1D');
   const [chartSource, setChartSource] = useState('');
   const intel = useAppStore(s => s.intel);
   useEffect(() => {
     api.quote(symbol).then(r => setQuote(r.quote)).catch(() => setQuote(null));
     api.kline(symbol, period, period.endsWith('m') || period === '1h' ? 180 : 260)
       .then(r => { setPoints(r.points); setChartSource(r.source); })
-      .catch(() => { setPoints([]); setChartSource(''); });
+      .catch(() => { setPoints([]); setChartSource('no data'); });
   }, [symbol, period]);
   const relatedIntel = intel.filter(entry => entry.symbol === symbol || entry.related?.some(r => r.symbol === symbol)).slice(0, 5);
   return (
@@ -602,7 +602,7 @@ function KlineChart({ points }: { points: KlinePoint[] }) {
   const upMode = useAppStore(s => s.upDownMode);
   useEffect(() => {
     if (!ref.current) return;
-    ref.current.innerHTML = '';
+    if (!points.length) return;
     const chart = createChart(ref.current, {
       autoSize: true,
       height: 360,
@@ -632,7 +632,12 @@ function KlineChart({ points }: { points: KlinePoint[] }) {
     chart.timeScale().fitContent();
     return () => chart.remove();
   }, [points, theme, upMode]);
-  return <div className="klineCanvas" ref={ref}>{!points.length && <div className="empty">No chart data</div>}</div>;
+  return (
+    <div className="klineShell">
+      <div className="klineCanvas" ref={ref} />
+      {!points.length && <div className="empty chartEmpty">No chart data</div>}
+    </div>
+  );
 }
 
 function Trade() {
