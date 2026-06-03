@@ -221,3 +221,84 @@ export interface Strategy {
   riskLevel: string;
   confidenceThreshold: number;
 }
+
+export type ResearchRating = 'BUY' | 'OVERWEIGHT' | 'HOLD' | 'UNDERWEIGHT' | 'SELL';
+export type ResearchDepth = 'quick' | 'deep';
+
+export interface ResearchAnalystReport {
+  role: string;
+  title: string;
+  score: number;
+  rating: ResearchRating;
+  ratingLabel: string;
+  summary: string;
+  evidence: string[];
+  risks: string[];
+  dataGrounding?: string[];
+}
+
+export interface ResearchRun {
+  id: string;
+  symbol: string;
+  requestedSymbol?: string;
+  status: 'running' | 'completed' | 'failed';
+  depth: ResearchDepth;
+  horizon?: string;
+  startedAt: string;
+  completedAt?: string | null;
+  progress: Array<{ id: string; label: string; status: string; at?: string | null }>;
+  quote?: Quote;
+  benchmark?: any;
+  context?: {
+    quote?: Quote;
+    benchmark?: any;
+    account?: any;
+    position?: any;
+    intel?: { news: IntelItem[]; search: IntelItem[]; sourceConfigured?: boolean };
+    memory?: ResearchMemoryEntry[];
+    sources?: Record<string, string>;
+  };
+  analysts?: ResearchAnalystReport[];
+  debate?: {
+    rounds: number;
+    bullResearcher: any;
+    bearResearcher: any;
+  };
+  manager?: any;
+  traderDraft?: any;
+  riskReview?: any;
+  portfolioManager?: any;
+  boundaries?: string[];
+  outcomes?: ResearchMemoryEntry[];
+  linkedProposalId?: string;
+  error?: string;
+}
+
+export interface ResearchMemoryEntry {
+  id: string;
+  runId?: string;
+  symbol: string;
+  createdAt?: string;
+  evaluatedAt?: string;
+  rating?: ResearchRating;
+  action?: string;
+  startPrice?: number;
+  currentPrice?: number;
+  rawReturnPct?: number | null;
+  benchmark?: string | null;
+  benchmarkReturnPct?: number | null;
+  alphaPct?: number | null;
+  verdict?: string;
+  lessons?: string[];
+}
+
+export interface ResearchConfig {
+  quickModel: string;
+  deepModel: string;
+  debateRounds: number;
+  riskDiscussRounds: number;
+  outputLanguage: 'zh' | 'en';
+  defaultDepth: ResearchDepth;
+  benchmarkMap: Record<Category | string, string>;
+  dataVendors: string[];
+}

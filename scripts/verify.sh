@@ -58,7 +58,23 @@ echo "[10] GET /api/agent/status"
 A=$(curl -sf "$BASE/api/agent/status" || true)
 if echo "$A" | grep -q '"agent"'; then ok "分析师 Agent"; else fail "agent status"; fi
 
-echo "[11] V4 React 静态资源"
+echo "[11] Research Desk"
+RC=$(curl -sf "$BASE/api/research/config" || true)
+if echo "$RC" | grep -q '"benchmarkMap"'; then ok "研究室配置"; else fail "research config"; fi
+RR=$(curl -sf -X POST "$BASE/api/research/run" \
+  -H "Content-Type: application/json" \
+  -d '{"symbol":"BTCUSDT","depth":"quick","horizon":"swing"}' || true)
+if echo "$RR" | grep -q '"portfolioManager"'; then ok "研究室多角色报告"; else fail "research run"; fi
+if echo "$RR" | grep -q '"bullResearcher"'; then ok "多空辩论"; else fail "research debate"; fi
+RUN_ID=$(printf '%s' "$RR" | node -e 'const fs=require("fs"); try { const d=JSON.parse(fs.readFileSync(0,"utf8")); process.stdout.write(d.run?.id || ""); } catch {}')
+if [ -n "$RUN_ID" ]; then
+  RQ=$(curl -sf "$BASE/api/research/runs/$RUN_ID" || true)
+  if echo "$RQ" | grep -q '"analysts"'; then ok "研究记录可追踪"; else fail "research run fetch"; fi
+else
+  fail "research run id"
+fi
+
+echo "[12] V4 React 静态资源"
 HTML=$(curl -sf "$BASE/" || true)
 if echo "$HTML" | grep -q 'id="root"'; then ok "React root"; else fail "React root"; fi
 JS=$(echo "$HTML" | grep -o '/assets/[^"]*\.js' | head -1)

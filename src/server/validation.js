@@ -85,7 +85,32 @@ function schemas() {
     watchSymbols: z.array(symbol).max(100).optional(),
   }).strip();
 
-  return { symbol, tradePayload, orderPayload, positionImport, automationRun, agentConfig };
+  const researchRun = z.object({
+    symbol,
+    depth: z.enum(['quick', 'deep']).default('quick'),
+    horizon: z.enum(['intraday', 'swing', 'position']).default('swing'),
+    focus: z.array(z.string().trim().min(1).max(80)).max(8).optional(),
+  }).strip();
+
+  const researchConfig = z.object({
+    quickModel: z.string().trim().min(1).max(120).optional(),
+    deepModel: z.string().trim().min(1).max(120).optional(),
+    debateRounds: z.coerce.number().int().min(1).max(5).optional(),
+    riskDiscussRounds: z.coerce.number().int().min(1).max(5).optional(),
+    outputLanguage: z.enum(['zh', 'en']).optional(),
+    defaultDepth: z.enum(['quick', 'deep']).optional(),
+    benchmarkMap: z.object({
+      usstocks: symbol.optional(),
+      crypto: symbol.optional(),
+      metals: symbol.optional(),
+      hkstocks: symbol.optional(),
+      astocks: symbol.optional(),
+      indices: symbol.optional(),
+    }).partial().optional(),
+    dataVendors: z.array(z.string().trim().min(1).max(80)).max(12).optional(),
+  }).strip();
+
+  return { symbol, tradePayload, orderPayload, positionImport, automationRun, agentConfig, researchRun, researchConfig };
 }
 
 function parseBody(schemaName, body) {

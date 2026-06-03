@@ -9,6 +9,9 @@ import type {
   Order,
   Quote,
   QuotesPayload,
+  ResearchConfig,
+  ResearchMemoryEntry,
+  ResearchRun,
   Strategy,
   WatchItem,
 } from './types';
@@ -70,6 +73,18 @@ export const api = {
   scanIntel: (body: any) => post<{ success: boolean; entry: IntelEntry }>('/api/intel/scan', body),
   analyzeIntel: (body: any) => post<{ success: boolean; entry: IntelEntry; llmReady: boolean }>('/api/intel/analyze', body),
   intelSignal: (body: any) => post<any>('/api/intel/agent-signal', body),
+  researchRun: (body: { symbol: string; depth?: 'quick' | 'deep'; horizon?: 'intraday' | 'swing' | 'position'; focus?: string[] }) =>
+    post<{ success: boolean; run: ResearchRun }>('/api/research/run', body),
+  researchRuns: (symbol?: string, limit = 30) =>
+    request<{ success: boolean; runs: ResearchRun[] }>(`/api/research/runs?limit=${limit}${symbol ? `&symbol=${encodeURIComponent(symbol)}` : ''}`),
+  researchRunById: (id: string) => request<{ success: boolean; run: ResearchRun }>(`/api/research/runs/${encodeURIComponent(id)}`),
+  researchCreateProposal: (id: string) => post<any>(`/api/research/runs/${encodeURIComponent(id)}/create-proposal`, {}),
+  researchEvaluate: (id: string) => post<{ success: boolean; outcome: ResearchMemoryEntry; run: ResearchRun }>(`/api/research/runs/${encodeURIComponent(id)}/evaluate-outcome`, {}),
+  researchMemory: (symbol: string, limit = 20) =>
+    request<{ success: boolean; symbol: string; memory: ResearchMemoryEntry[] }>(`/api/research/memory?symbol=${encodeURIComponent(symbol)}&limit=${limit}`),
+  researchConfig: () => request<{ success: boolean; config: ResearchConfig }>('/api/research/config'),
+  updateResearchConfig: (body: Partial<ResearchConfig>) =>
+    request<{ success: boolean; config: ResearchConfig }>('/api/research/config', { method: 'PATCH', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }),
   agentStatus: () => request<AgentStatus>('/api/agent/status'),
   agentConfig: () => request<any>('/api/agent/config'),
   updateAgentConfig: (body: any) => request<any>('/api/agent/config', { method: 'PATCH', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }),

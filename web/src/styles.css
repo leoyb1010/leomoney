@@ -81,6 +81,7 @@ a { color: inherit; text-decoration: none; }
 .smallButton.full { width: 100%; }
 .primaryButton { min-height: 42px; padding: 0 14px; background: var(--primary); color: #06131a; border-color: transparent; font-weight: 800; width: 100%; }
 .primaryButton.danger { background: var(--danger); color: white; }
+button:disabled { opacity: .5; cursor: not-allowed; }
 .dangerGhost { color: var(--danger); }
 .activeStar svg { fill: var(--accent); color: var(--accent); }
 select, input, textarea { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px; min-height: 38px; padding: 0 10px; outline: 0; min-width: 0; }
@@ -99,7 +100,7 @@ textarea { min-height: 130px; padding: 10px; resize: vertical; line-height: 1.5;
 .metricCard span { color: var(--muted); }
 .metricCard strong { font-size: 22px; line-height: 1.1; }
 
-.dashboardGrid, .symbolGrid, .tradeGrid, .positionsGrid, .assetGrid, .intelGrid, .agentGrid, .settingsGrid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.dashboardGrid, .symbolGrid, .tradeGrid, .positionsGrid, .assetGrid, .intelGrid, .researchGrid, .agentGrid, .settingsGrid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; align-items: start; }
 .panel { grid-column: span 4; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; min-height: 120px; box-shadow: var(--shadow); }
 .panel.wide { grid-column: span 8; }
 .panel.narrow { max-width: 520px; }
@@ -183,6 +184,50 @@ textarea { min-height: 130px; padding: 10px; resize: vertical; line-height: 1.5;
 .chips button { min-height: 28px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 999px; padding: 0 9px; display: inline-flex; gap: 6px; align-items: center; }
 .chips span { color: var(--muted); }
 
+.researchConfig { display: grid; gap: 8px; margin-top: 12px; }
+.researchConfig div { display: grid; grid-template-columns: 70px 1fr; gap: 8px; align-items: center; min-height: 34px; padding: 8px; border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; }
+.researchConfig span, .researchSnapshot span, .researchPoints span, .planBlock span { color: var(--muted); font-size: 12px; }
+.researchConfig strong { overflow-wrap: anywhere; font-size: 12px; }
+.researchSnapshot { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.researchSnapshot > div { min-height: 84px; padding: 12px; border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; display: grid; gap: 4px; align-content: start; }
+.researchSnapshot strong { font-size: 18px; overflow-wrap: anywhere; }
+.researchSnapshot small { color: var(--muted); }
+.researchProgress { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.progressStep { min-height: 44px; border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: 8px; display: grid; gap: 2px; }
+.progressStep.done { border-color: color-mix(in srgb, var(--success) 54%, var(--border)); }
+.progressStep.failed { border-color: var(--danger); }
+.progressStep span { font-size: 13px; }
+.progressStep small { color: var(--muted); }
+.researchCards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.researchCard, .debateColumn, .planBlock, .memoryItem { border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: 12px; min-width: 0; }
+.researchCard header, .memoryItem header { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.researchCard p, .debateColumn p, .planBlock p, .memoryItem p, .portfolioDecision p, .boundaryText { color: var(--muted); line-height: 1.55; margin: 8px 0 0; }
+.researchPoints { margin-top: 10px; display: grid; gap: 5px; }
+.researchPoints p { margin: 0; color: var(--text); }
+.researchPoints.muted p { color: var(--muted); }
+.researchHistory { display: grid; gap: 8px; }
+.researchHistory button { min-height: 62px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 8px; padding: 10px; text-align: left; display: grid; grid-template-columns: 1fr auto; gap: 3px 8px; }
+.researchHistory small { color: var(--muted); grid-column: 1 / -1; }
+.debateGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.debateColumn.manager { grid-column: 1 / -1; }
+.debateColumn strong { display: block; margin-bottom: 4px; }
+.debateColumn span { display: block; padding: 8px 0; border-top: 1px solid var(--border); line-height: 1.45; }
+.debateColumn small { display: block; color: var(--muted); margin-top: 3px; }
+.debateColumn.bull { border-color: color-mix(in srgb, var(--success) 44%, var(--border)); }
+.debateColumn.bear { border-color: color-mix(in srgb, var(--warn) 44%, var(--border)); }
+.portfolioDecision { display: grid; gap: 8px; }
+.decisionBadge { min-height: 34px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 8px; font-weight: 800; }
+.decisionBadge.ok { color: var(--success); }
+.decisionBadge.warn { color: var(--warn); }
+.portfolioDecision span { display: block; color: var(--muted); border-top: 1px solid var(--border); padding-top: 8px; }
+.portfolioDecision small { color: var(--primary); }
+.tradePlanGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.planBlock strong { display: block; margin-top: 5px; overflow-wrap: anywhere; }
+.boundaryText { border-left: 2px solid var(--primary); padding-left: 10px; }
+.memoryList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.memoryMetrics { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.memoryMetrics span { color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 4px 8px; font-size: 12px; }
+
 .statusStack { display: grid; gap: 8px; }
 .statusStack div { display: flex; justify-content: space-between; border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: var(--surface-2); }
 .signalList { display: grid; gap: 8px; }
@@ -230,9 +275,10 @@ textarea { min-height: 130px; padding: 10px; resize: vertical; line-height: 1.5;
   .metricGrid { grid-template-columns: 1fr 1fr; gap: 8px; }
   .metricCard { min-height: 94px; padding: 12px; }
   .metricCard strong { font-size: 18px; }
-  .dashboardGrid, .symbolGrid, .tradeGrid, .positionsGrid, .assetGrid, .intelGrid, .agentGrid, .settingsGrid { grid-template-columns: 1fr; }
+  .dashboardGrid, .symbolGrid, .tradeGrid, .positionsGrid, .assetGrid, .intelGrid, .researchGrid, .agentGrid, .settingsGrid { grid-template-columns: 1fr; }
   .panel, .panel.wide { grid-column: auto; padding: 12px; }
-  .quoteGrid, .accountGrid, .analysisGrid, .strategyGrid, .healthGrid { grid-template-columns: 1fr; }
+  .quoteGrid, .accountGrid, .analysisGrid, .strategyGrid, .healthGrid, .researchSnapshot, .researchProgress, .researchCards, .debateGrid, .tradePlanGrid, .memoryList { grid-template-columns: 1fr; }
+  .debateColumn.manager { grid-column: auto; }
   .tableHead { display: none; }
   .tableRow { grid-template-columns: 1fr auto; min-height: 92px; align-items: start; padding: 12px; }
   .tableRow span:nth-child(n+3) { text-align: right; }

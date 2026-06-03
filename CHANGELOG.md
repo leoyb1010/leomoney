@@ -1,5 +1,27 @@
 # Changelog
 
+## v4.1.0 (2026-06-03) — Research Desk / TradingAgents capability absorption
+
+### Research Desk
+
+- Added LeoMoney-native Research Desk inspired by TradingAgents' multi-agent research workflow, without importing the Python/LangGraph runtime.
+- Added market, news, sentiment and fundamental/asset-quality analyst reports.
+- Added bull/bear researcher debate, research manager judgment, trader paper-proposal draft, conservative/aggressive/neutral risk reviewers and portfolio manager approval.
+- Added `POST /api/research/run`, research history lookup, proposal-draft creation, outcome evaluation, memory and config APIs.
+- Added persistent `research-runs.json`, `research-memory.json` and `research-config.json` under the configured LeoMoney data directory.
+
+### Product boundary
+
+- Research Desk can only create research reports and paper proposal drafts.
+- Proposal creation still routes through the existing Agent proposal and risk gate path; no research output can directly write positions.
+- Data grounding is explicit: quote, benchmark, news/search, account snapshot and memory sources are exposed in the run record.
+- Financial products, tickers, company names, ETFs, indices and coin names are not forcibly translated.
+
+### UI and verification
+
+- Added the Research page with run controls, progress, analyst cards, debate, portfolio decision, trade draft, risk review and decision memory.
+- Added deterministic Research Desk tests and verify-script coverage for research config, run tracking and debate output.
+
 ## v4.0.0 (2026-06-03) — V4 full product rebuild
 
 ### Product

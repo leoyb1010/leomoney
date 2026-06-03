@@ -16,6 +16,7 @@
 | 订单 | 条件单、撤单、最近成交 |
 | 资产 | 多账户、初始资金、现金/持仓占比、集中度分析 |
 | 情报 | 中英文情报、标题+摘要中文化、来源透明、标的映射、订阅、深度解读 |
+| 研究室 | 吸收 TradingAgents 的多角色投研机制：四类分析师、多空辩论、研究经理、交易草稿、风控审查、组合经理审批、决策记忆和收益复盘 |
 | 策略 | 策略库、运行配置、信号流、方案审批、回测、自动化闸门演练 |
 | 设置 | 暗/亮主题、USD/CNY/USDT/HKD、红涨绿跌/绿涨红跌、源健康 |
 
@@ -50,6 +51,11 @@ npm run verify      # API/静态资源冒烟，需先 npm start
 | `POST /api/orders` | 止盈止损/条件单 |
 | `POST /api/account/positions/import` | 批量录入已有持仓 |
 | `POST /api/intel/scan` / `POST /api/intel/analyze` | 情报扫描和深度解读 |
+| `POST /api/research/run` | 运行 Research Desk 多角色研究 |
+| `GET /api/research/runs` / `GET /api/research/runs/:runId` | 研究历史和单次研究记录 |
+| `POST /api/research/runs/:runId/create-proposal` | 将组合经理批准的研究转为模拟方案草稿 |
+| `POST /api/research/runs/:runId/evaluate-outcome` | 复盘研究结论，写入决策记忆 |
+| `GET /api/research/memory` / `GET/PATCH /api/research/config` | 研究记忆和 quick/deep/benchmark 配置 |
 | `GET /api/agent/*` | 策略、信号、方案、风控、回测 |
 | `GET /api/sse?channels=quotes,intel,agent,trade,system` | 实时推送 |
 
@@ -61,6 +67,9 @@ npm run verify      # API/静态资源冒烟，需先 npm start
 | --- | --- |
 | `LLM_API_KEY` | DeepSeek/LLM 密钥；启用情报中文化、摘要、标的映射和 Agent 解读 |
 | `LLM_PROVIDER` / `LLM_MODEL` | 默认 `deepseek` / `deepseek-chat` |
+| `RESEARCH_QUICK_MODEL` / `RESEARCH_DEEP_MODEL` | 研究室 quick/deep 模型，可与全局 LLM 模型分离 |
+| `RESEARCH_DEBATE_ROUNDS` / `RESEARCH_RISK_DISCUSS_ROUNDS` | 多空辩论和风控讨论轮数 |
+| `RESEARCH_DEFAULT_BENCHMARK_US` / `RESEARCH_DEFAULT_BENCHMARK_CRYPTO` | 美股/加密默认对比基准 |
 | `SEARCH_API_KEY` / `SEARCH_API_URL` | 可选扩展检索 |
 | `LEOMONEY_PAPER_EXECUTION_ENABLED` | 是否允许模拟盘写入 |
 | `LEOMONEY_AGENT_PAPER_EXECUTION_ENABLED` | Agent 直连写入默认关闭，建议走闸门 |
@@ -83,8 +92,12 @@ src/server/services/         账户、交易、订单、汇总服务
 
 ## 版本
 
-**v4.0.0**
+**v4.1.0**
 
+- 吸收 TradingAgents 的投研组织能力，新增 Research Desk，不引入 Python/LangGraph 运行时
+- 新增四类分析师、多头/空头研究员、研究经理、交易员草稿、风控审查和组合经理审批
+- 新增研究历史、决策记忆、收益/alpha 复盘和 quick/deep 模型配置
+- 研究结论只能生成模拟方案草稿，仍必须经过 proposal、risk gate、用户确认和模拟盘执行
 - React/Vite/TypeScript 重构，旧单文件前端退场
 - 默认美股 + USD，恢复大盘条，纠正“权益”为“美股”
 - 新增完整交易、持仓、订单、资产、自选、情报、策略、提醒、设置页面

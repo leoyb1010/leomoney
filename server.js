@@ -19,6 +19,7 @@ const analysisRoutes = require('./src/server/routes/analysisRoutes');
 const agentRoutes = require('./src/server/routes/agentRoutes');
 const systemRoutes = require('./src/server/routes/systemRoutes');
 const intelRoutes = require('./src/server/routes/intelRoutes');
+const researchRoutes = require('./src/server/routes/researchRoutes');
 
 const { sseService } = require('./lib/sse');
 
@@ -37,6 +38,7 @@ function createApp(runtimeConfig = getRuntimeConfig()) {
   app.use('/api', agentRoutes);
   app.use('/api', systemRoutes);
   app.use('/api', intelRoutes);
+  app.use('/api', researchRoutes);
 
   // SSE 实时推送
   app.get('/api/sse', (req, res) => {

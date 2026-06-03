@@ -1,6 +1,6 @@
 {
   "name": "leomoney",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "private": true,
   "description": "LeoMoney V4 - personal US stock and crypto paper trading desk",
   "scripts": {

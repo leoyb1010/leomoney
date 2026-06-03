@@ -43,7 +43,7 @@ import { ColorType, CandlestickSeries, createChart } from 'lightweight-charts';
 import { api, connectSse } from './api';
 import { t } from './i18n';
 import { useAppStore } from './store';
-import type { Category, Holding, IntelEntry, KlinePoint, Order, Quote, Strategy, TradeRecord } from './types';
+import type { Category, Holding, IntelEntry, KlinePoint, Order, Quote, ResearchConfig, ResearchMemoryEntry, ResearchRun, Strategy, TradeRecord } from './types';
 import { ageText, categoryLabel, cx, money, moneyFromCny, pct, signed, toNumber, upClass } from './utils';
 
 const NAV_ITEMS = [
@@ -55,6 +55,7 @@ const NAV_ITEMS = [
   { path: '/assets', key: 'assets', icon: Wallet },
   { path: '/watchlist', key: 'watchlist', icon: Star },
   { path: '/intel', key: 'intel', icon: Sparkles },
+  { path: '/research', key: 'research', icon: BarChart3 },
   { path: '/agent', key: 'agent', icon: Bot },
   { path: '/alerts', key: 'alerts', icon: Bell },
   { path: '/settings', key: 'settings', icon: Settings },
@@ -145,6 +146,7 @@ export default function App() {
               <Route path="/assets" element={<Assets />} />
               <Route path="/watchlist" element={<Watchlist />} />
               <Route path="/intel" element={<IntelCenter />} />
+              <Route path="/research" element={<ResearchDeskPage />} />
               <Route path="/agent" element={<AgentCenter />} />
               <Route path="/alerts" element={<Alerts />} />
               <Route path="/settings" element={<SettingsPage />} />
@@ -966,6 +968,337 @@ function IntelList({ entries, compact = false }: { entries: IntelEntry[]; compac
 
 function RelatedChips({ items, onClick }: { items: any[]; onClick: (symbol: string) => void }) {
   return <div className="chips">{items.slice(0, 5).map(r => <button key={r.symbol} onClick={() => onClick(r.symbol)}>{r.symbol}<span>{pct(r.changePercent || 0)}</span></button>)}</div>;
+}
+
+function ResearchDeskPage() {
+  const selectedSymbol = useAppStore(s => s.selectedSymbol);
+  const notify = useAppStore(s => s.notify);
+  const [symbol, setSymbol] = useState(selectedSymbol || 'AAPL');
+  const [depth, setDepth] = useState<'quick' | 'deep'>('quick');
+  const [horizon, setHorizon] = useState<'intraday' | 'swing' | 'position'>('swing');
+  const [loading, setLoading] = useState(false);
+  const [run, setRun] = useState<ResearchRun | null>(null);
+  const [runs, setRuns] = useState<ResearchRun[]>([]);
+  const [memory, setMemory] = useState<ResearchMemoryEntry[]>([]);
+  const [config, setConfig] = useState<ResearchConfig | null>(null);
+  const normalizedSymbol = symbol.trim().toUpperCase();
+  const activeRun = run || runs[0] || null;
+
+  async function refreshResearch(nextSymbol = normalizedSymbol) {
+    const [history, mem] = await Promise.all([
+      api.researchRuns(nextSymbol, 30).catch(() => ({ runs: [] as ResearchRun[] })),
+      api.researchMemory(nextSymbol, 20).catch(() => ({ memory: [] as ResearchMemoryEntry[] })),
+    ]);
+    setRuns(history.runs || []);
+    setMemory(mem.memory || []);
+  }
+
+  useEffect(() => {
+    api.researchConfig().then(r => setConfig(r.config)).catch(() => setConfig(null));
+    refreshResearch(normalizedSymbol).catch(() => undefined);
+  }, []);
+
+  async function startResearch() {
+    if (!normalizedSymbol) return;
+    setLoading(true);
+    try {
+      const result = await api.researchRun({ symbol: normalizedSymbol, depth, horizon });
+      setRun(result.run);
+      await refreshResearch(result.run.symbol);
+      notify(depth === 'deep' ? '深度研究完成' : '快速研究完成');
+    } catch (err: any) {
+      notify(err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function createDraftProposal() {
+    if (!activeRun) return;
+    try {
+      const result = await api.researchCreateProposal(activeRun.id);
+      setRun(result.run || activeRun);
+      await refreshResearch(activeRun.symbol);
+      notify(`已生成模拟方案 ${result.proposal?.id || ''}`);
+    } catch (err: any) {
+      notify(err.message, 'error');
+    }
+  }
+
+  async function evaluateRun() {
+    if (!activeRun) return;
+    try {
+      const result = await api.researchEvaluate(activeRun.id);
+      setRun(result.run);
+      await refreshResearch(activeRun.symbol);
+      notify(`复盘完成：${result.outcome?.verdict || 'done'}`);
+    } catch (err: any) {
+      notify(err.message, 'error');
+    }
+  }
+
+  return (
+    <Page>
+      <div className="pageHeader">
+        <h1>研究室</h1>
+        <span className="badge">Research Desk · Paper only</span>
+      </div>
+      <section className="researchGrid">
+        <div className="panel">
+          <SectionTitle icon={<Sparkles />} title="发起研究" />
+          <label className="field"><span>标的</span><input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} /></label>
+          <div className="segmented big">
+            <button className={depth === 'quick' ? 'active' : ''} onClick={() => setDepth('quick')}>快速</button>
+            <button className={depth === 'deep' ? 'active' : ''} onClick={() => setDepth('deep')}>深度</button>
+          </div>
+          <select value={horizon} onChange={e => setHorizon(e.target.value as any)}>
+            <option value="intraday">日内观察</option>
+            <option value="swing">波段验证</option>
+            <option value="position">持仓复盘</option>
+          </select>
+          <button className="primaryButton" onClick={startResearch} disabled={loading || !normalizedSymbol}>
+            {loading ? <RefreshCw size={16} /> : <BarChart3 size={16} />}
+            {loading ? '研究中' : '开始研究'}
+          </button>
+          <ResearchConfigPanel config={config} symbol={normalizedSymbol} />
+        </div>
+
+        <div className="panel wide">
+          <SectionTitle icon={<Activity />} title="研究状态" action={activeRun && <span className={cx('badge', activeRun.status === 'completed' ? 'ok' : activeRun.status === 'failed' ? 'warn' : '')}>{activeRun.status}</span>} />
+          {activeRun ? <ResearchSnapshot run={activeRun} /> : <div className="empty">输入标的后开始研究</div>}
+          {activeRun && <ResearchProgress run={activeRun} />}
+        </div>
+
+        <div className="panel wide">
+          <SectionTitle icon={<CandlestickChart />} title="四类分析师" />
+          {activeRun?.analysts?.length ? (
+            <div className="researchCards">
+              {activeRun.analysts.map(report => <ResearchAnalystCard key={report.role} report={report} />)}
+            </div>
+          ) : <div className="empty">暂无分析师报告</div>}
+        </div>
+
+        <div className="panel">
+          <SectionTitle icon={<Clock />} title="历史研究" />
+          <ResearchHistory runs={runs} onPick={item => setRun(item)} />
+        </div>
+
+        <div className="panel wide">
+          <SectionTitle icon={<Target />} title="多空辩论" />
+          {activeRun?.debate ? <ResearchDebate run={activeRun} /> : <div className="empty">暂无辩论记录</div>}
+        </div>
+
+        <div className="panel">
+          <SectionTitle icon={<ShieldCheck />} title="组合经理" />
+          {activeRun?.portfolioManager ? <PortfolioDecision run={activeRun} /> : <div className="empty">等待研究完成</div>}
+          <div className="buttonRow">
+            <button disabled={!activeRun || activeRun.status !== 'completed'} onClick={createDraftProposal}>生成模拟方案</button>
+            <button disabled={!activeRun || activeRun.status !== 'completed'} onClick={evaluateRun}>复盘</button>
+          </div>
+        </div>
+
+        <div className="panel wide">
+          <SectionTitle icon={<ListChecks />} title="交易草稿与风控" />
+          {activeRun ? <ResearchTradePlan run={activeRun} /> : <div className="empty">暂无交易草稿</div>}
+        </div>
+
+        <div className="panel">
+          <SectionTitle icon={<ShieldCheck />} title="产品边界" />
+          {(activeRun?.boundaries || ['仅用于研究辅助和模拟交易参考。']).map(text => <p className="boundaryText" key={text}>{text}</p>)}
+        </div>
+
+        <div className="panel wide">
+          <SectionTitle icon={<RefreshCw />} title="决策记忆与复盘" />
+          <ResearchMemoryList memory={memory} outcomes={activeRun?.outcomes || []} />
+        </div>
+      </section>
+    </Page>
+  );
+}
+
+function ResearchConfigPanel({ config, symbol }: { config: ResearchConfig | null; symbol: string }) {
+  if (!config) return <div className="researchConfig"><span>配置读取中</span></div>;
+  const benchmark = config.benchmarkMap?.usstocks || config.benchmarkMap?.crypto || '--';
+  return (
+    <div className="researchConfig">
+      <div><span>Quick</span><strong>{config.quickModel}</strong></div>
+      <div><span>Deep</span><strong>{config.deepModel}</strong></div>
+      <div><span>默认基准</span><strong>{symbol.endsWith('USDT') ? config.benchmarkMap.crypto : benchmark}</strong></div>
+    </div>
+  );
+}
+
+function ResearchSnapshot({ run }: { run: ResearchRun }) {
+  const q = run.quote || run.context?.quote;
+  return (
+    <div className="researchSnapshot">
+      <div>
+        <span>标的</span>
+        <strong>{run.symbol}</strong>
+        <small>{q?.name || run.symbol}</small>
+      </div>
+      <div>
+        <span>价格</span>
+        <strong>{q ? money(q.price, q.currency || 'USD') : '--'}</strong>
+        <small>{q ? pct(q.changePercent || 0) : '--'}</small>
+      </div>
+      <div>
+        <span>综合评级</span>
+        <strong>{run.manager?.ratingLabel || '--'}</strong>
+        <small>{run.manager?.confidence ? `confidence ${run.manager.confidence}` : '--'}</small>
+      </div>
+      <div>
+        <span>基准</span>
+        <strong>{run.benchmark?.symbol || run.context?.benchmark?.symbol || '--'}</strong>
+        <small>{run.benchmark?.changePercent !== undefined ? pct(run.benchmark.changePercent) : 'benchmark'}</small>
+      </div>
+    </div>
+  );
+}
+
+function ResearchProgress({ run }: { run: ResearchRun }) {
+  return (
+    <div className="researchProgress">
+      {(run.progress || []).map(step => (
+        <div className={cx('progressStep', step.status === 'completed' && 'done', step.status === 'failed' && 'failed')} key={step.id}>
+          <span>{step.label}</span>
+          <small>{step.status}</small>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ResearchAnalystCard({ report }: { report: any }) {
+  return (
+    <article className="researchCard">
+      <header>
+        <strong>{report.title}</strong>
+        <span className="badge">{report.ratingLabel}</span>
+      </header>
+      <p>{report.summary}</p>
+      <ResearchPointList title="证据" items={report.evidence || []} />
+      <ResearchPointList title="风险" items={report.risks || []} muted />
+    </article>
+  );
+}
+
+function ResearchPointList({ title, items, muted = false }: { title: string; items: string[]; muted?: boolean }) {
+  if (!items.length) return null;
+  return (
+    <div className={cx('researchPoints', muted && 'muted')}>
+      <span>{title}</span>
+      {items.slice(0, 4).map(item => <p key={item}>{item}</p>)}
+    </div>
+  );
+}
+
+function ResearchHistory({ runs, onPick }: { runs: ResearchRun[]; onPick: (run: ResearchRun) => void }) {
+  if (!runs.length) return <div className="empty">暂无历史研究</div>;
+  return (
+    <div className="researchHistory">
+      {runs.slice(0, 8).map(item => (
+        <button key={item.id} onClick={() => onPick(item)}>
+          <strong>{item.symbol}</strong>
+          <span>{item.manager?.ratingLabel || item.status}</span>
+          <small>{ageText(item.startedAt)}</small>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ResearchDebate({ run }: { run: ResearchRun }) {
+  const bull = run.debate?.bullResearcher;
+  const bear = run.debate?.bearResearcher;
+  return (
+    <div className="debateGrid">
+      <article className="debateColumn bull">
+        <strong>{bull?.title || '多头研究员'}</strong>
+        <p>{bull?.thesis}</p>
+        {(bull?.points || []).slice(0, 5).map((point: any, idx: number) => <span key={`${point.text}-${idx}`}>{point.text}<small>{point.source}</small></span>)}
+      </article>
+      <article className="debateColumn bear">
+        <strong>{bear?.title || '空头研究员'}</strong>
+        <p>{bear?.thesis}</p>
+        {(bear?.points || []).slice(0, 5).map((point: any, idx: number) => <span key={`${point.text}-${idx}`}>{point.text}<small>{point.source}</small></span>)}
+      </article>
+      <article className="debateColumn manager">
+        <strong>{run.manager?.title || '研究经理'}</strong>
+        <p>{run.manager?.summary}</p>
+        {(run.manager?.keyDisagreements || []).map((item: string) => <span key={item}>{item}</span>)}
+      </article>
+    </div>
+  );
+}
+
+function PortfolioDecision({ run }: { run: ResearchRun }) {
+  const pm = run.portfolioManager;
+  return (
+    <div className="portfolioDecision">
+      <div className={cx('decisionBadge', pm?.approved ? 'ok' : 'warn')}>
+        {pm?.approved ? '批准草稿' : '拒绝/观察'}
+      </div>
+      <p>{pm?.summary}</p>
+      {(pm?.reasons || []).slice(0, 4).map((reason: string) => <span key={reason}>{reason}</span>)}
+      {run.linkedProposalId && <small>已关联方案 {run.linkedProposalId}</small>}
+    </div>
+  );
+}
+
+function ResearchTradePlan({ run }: { run: ResearchRun }) {
+  const draft = run.traderDraft;
+  const reviewers = run.riskReview?.reviewers || [];
+  if (!draft) return <div className="empty">暂无交易草稿</div>;
+  return (
+    <div className="tradePlanGrid">
+      <div className="planBlock">
+        <span>动作</span>
+        <strong>{draft.actionLabel}</strong>
+        <p>{draft.plan}</p>
+      </div>
+      <div className="planBlock">
+        <span>数量</span>
+        <strong>{draft.qty || 0}</strong>
+        <p>参考价 {money(draft.entry?.referencePrice || 0, draft.entry?.currency || 'USD')}</p>
+      </div>
+      <div className="planBlock">
+        <span>止损/止盈</span>
+        <strong>{draft.riskPlan?.stopLoss} / {draft.riskPlan?.takeProfit}</strong>
+        <p>{draft.constraints?.[0]}</p>
+      </div>
+      {reviewers.map((review: any) => (
+        <div className="planBlock" key={review.role}>
+          <span>{review.title}</span>
+          <strong>{review.stance}</strong>
+          <p>{review.summary}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ResearchMemoryList({ memory, outcomes }: { memory: ResearchMemoryEntry[]; outcomes: ResearchMemoryEntry[] }) {
+  const rows = [...outcomes, ...memory].filter(Boolean);
+  if (!rows.length) return <div className="empty">暂无复盘记忆</div>;
+  return (
+    <div className="memoryList">
+      {rows.slice(0, 8).map((item, idx) => (
+        <article className="memoryItem" key={item.id || `${item.runId}-${idx}`}>
+          <header>
+            <strong>{item.symbol}</strong>
+            <span>{item.verdict || item.rating || '--'}</span>
+          </header>
+          <div className="memoryMetrics">
+            <span>收益 {item.rawReturnPct ?? '--'}%</span>
+            <span>Alpha {item.alphaPct ?? '--'}%</span>
+            <span>{item.benchmark || 'benchmark'}</span>
+          </div>
+          {(item.lessons || []).slice(0, 2).map(lesson => <p key={lesson}>{lesson}</p>)}
+        </article>
+      ))}
+    </div>
+  );
 }
 
 function AgentCenter() {
