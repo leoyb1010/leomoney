@@ -18,6 +18,7 @@ const tradeRoutes = require('./src/server/routes/tradeRoutes');
 const analysisRoutes = require('./src/server/routes/analysisRoutes');
 const agentRoutes = require('./src/server/routes/agentRoutes');
 const systemRoutes = require('./src/server/routes/systemRoutes');
+const intelRoutes = require('./src/server/routes/intelRoutes');
 
 const { sseService } = require('./lib/sse');
 
@@ -35,6 +36,7 @@ function createApp(runtimeConfig = getRuntimeConfig()) {
   app.use('/api', analysisRoutes);
   app.use('/api', agentRoutes);
   app.use('/api', systemRoutes);
+  app.use('/api', intelRoutes);
 
   // SSE 实时推送
   app.get('/api/sse', (req, res) => {
@@ -102,6 +104,9 @@ function startServer(runtimeConfig = getRuntimeConfig()) {
 
   // 启动 SSE 实时推送
   sseService.startAll();
+
+  const { startIntelPolling } = require('./lib/intel');
+  startIntelPolling();
 
   // Agent 状态
   const { isLLMReady } = require('./lib/agent/brain');
