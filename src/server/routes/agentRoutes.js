@@ -1,166 +1,19 @@
 /**
- * Leomoney Agent API 路由 v3
- * 20 个端点覆盖：配置/策略/信号/方案/熔断器/风控/日志/回测/健康/SSE
+ * Leomoney Agent API 路由 v3（精简）
+ *
+ * 历史上这里有一整套 /agent/* 端点，但它与 analysisRoutes.js 大量重复，且 analysisRoutes
+ * 先挂载（server.js）会抢先匹配，导致这里的同名 handler 永远不会被执行（dead code）。
+ * 为消除这种隐蔽的 route shadowing，这里只保留 analysisRoutes 没有、且前端会调用的两个
+ * 无状态端点：回测与健康面板。其余 agent 端点统一由 analysisRoutes 提供。
  */
 
 const express = require('express');
 const router = express.Router();
 
-const { getAgentConfig, updateAgentConfig, getDecisionLog } = require('../../../lib/scheduler');
-const { generateSignal, createProposal, executeProposal, scanSymbols, getSignals, getProposals, approveProposal, rejectProposal } = require('../../../lib/agent/cognitiveLoop');
-const { breaker, getBreakerForAccount } = require('../../../lib/agent/circuitBreaker');
-const { riskManager, getRiskManagerForAccount } = require('../../../lib/agent/riskManager');
-const { listStrategies, getStrategy, createCustomStrategy, getStrategyPrompt } = require('../../../lib/agent/promptTemplates');
-const { isLLMReady, getLLMInfo } = require('../../../lib/agent/brain');
-const { gatherIntelligence } = require('../../../lib/agent/eyes');
 const { backtestStrategy, backtestAll } = require('../../../lib/agent/backtest');
 const { getApiHealth } = require('../../../lib/quotes');
 const { sseService } = require('../../../lib/sse');
-const { parseBody, parseSymbol } = require('../validation');
-
-// ── 配置 ──
-
-router.get('/agent/config', (req, res) => {
-  res.json({ success: true, config: getAgentConfig() });
-});
-
-router.patch('/agent/config', (req, res) => {
-  try {
-    const parsed = parseBody('agentConfig', req.body || {});
-    if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.error, issues: parsed.issues });
-    const config = updateAgentConfig(parsed.data);
-    res.json({ success: true, config });
-  } catch (err) {
-    res.status(400).json({ success: false, error: err.message });
-  }
-});
-
-// ── 状态总览 ──
-
-router.get('/agent/status', (req, res) => {
-  const config = getAgentConfig();
-  const breakerStatus = breaker.getStatus();
-  const riskStatus = riskManager.getStatus();
-
-  res.json({
-    success: true,
-    llmReady: isLLMReady(),
-    llmInfo: getLLMInfo(),
-    searchConfigured: !!(process.env.SEARCH_API_KEY),
-    agent: config,
-    circuitBreaker: breakerStatus,
-    risk: riskStatus,
-  });
-});
-
-// ── 策略 ──
-
-router.get('/agent/strategies', (req, res) => {
-  const strategies = listStrategies();
-  res.json({ success: true, strategies });
-});
-
-router.post('/agent/strategies/custom', (req, res) => {
-  try {
-    const { name, description, prompt } = req.body;
-    if (!name || !prompt) return res.status(400).json({ success: false, error: '需要 name 和 prompt' });
-    const strategy = createCustomStrategy({ name, description: description || '', systemPrompt: prompt });
-    res.json({ success: true, strategy });
-  } catch (err) {
-    res.status(400).json({ success: false, error: err.message });
-  }
-});
-
-// ── 信号 ──
-
-router.get('/agent/signals', (req, res) => {
-  const limit = parseInt(req.query.limit) || 20;
-  res.json({ success: true, signals: getSignals(limit) });
-});
-
-router.post('/agent/signal', async (req, res) => {
-  try {
-    const { symbol, strategyId } = req.body;
-    const parsedSymbol = parseSymbol(symbol);
-    if (!parsedSymbol.ok) return res.status(400).json({ success: false, error: parsedSymbol.error });
-    const config = getAgentConfig();
-    const result = await generateSignal(parsedSymbol.symbol, strategyId || config.strategyId);
-    if (result.error) return res.json({ success: false, error: result.error });
-
-    // Level 2+ 自动创建方案
-    if (breaker.currentLevel >= 2 && result.signal && result.signal.action !== '观望') {
-      const proposal = createProposal(result.signal);
-      // Level 3 自动执行
-      if (breaker.currentLevel === 3 && proposal && proposal.status !== 'rejected') {
-        const threshold = getStrategy(config.strategyId)?.confidenceThreshold || 0.7;
-        if (result.signal.confidence >= threshold) {
-          await executeProposal(proposal.id, true);
-        }
-      }
-    }
-
-    res.json({ success: true, signal: result.signal });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// ── 方案 ──
-
-router.get('/agent/proposals', (req, res) => {
-  res.json({ success: true, proposals: getProposals() });
-});
-
-router.post('/agent/proposals/:id/approve', (req, res) => {
-  try {
-    const result = approveProposal(req.params.id);
-    res.json({ success: !!result, ...result });
-  } catch (err) {
-    res.status(400).json({ success: false, error: err.message });
-  }
-});
-
-router.post('/agent/proposals/:id/reject', (req, res) => {
-  try {
-    const result = rejectProposal(req.params.id);
-    res.json({ success: !!result, ...result });
-  } catch (err) {
-    res.status(400).json({ success: false, error: err.message });
-  }
-});
-
-router.post('/agent/proposals/:id/execute', async (req, res) => {
-  try {
-    const result = await executeProposal(req.params.id);
-    res.json({ success: result.success, ...result });
-  } catch (err) {
-    res.status(400).json({ success: false, error: err.message });
-  }
-});
-
-// ── 熔断器 ──
-
-router.get('/agent/circuit-breaker', (req, res) => {
-  res.json({ success: true, ...breaker.getStatus() });
-});
-
-router.post('/agent/circuit-breaker/reset', (req, res) => {
-  breaker.reset();
-  res.json({ success: true, state: breaker.getStatus().state });
-});
-
-// ── 风控 ──
-
-router.get('/agent/risk', (req, res) => {
-  res.json({ success: true, ...riskManager.getStatus() });
-});
-
-// ── 日志 ──
-
-router.get('/agent/log', (req, res) => {
-  const limit = parseInt(req.query.limit) || 50;
-  res.json({ success: true, log: getDecisionLog().slice(0, limit) });
-});
+const { isLLMReady, getLLMInfo } = require('../../../lib/agent/brain');
 
 // ── 回测 v3 ──
 
@@ -201,29 +54,6 @@ router.get('/agent/health', (req, res) => {
       provider: process.env.SEARCH_API_URL ? 'tavily' : 'none',
     },
     timestamp: new Date().toISOString(),
-  });
-});
-
-// ── 日报 ──
-
-router.get('/agent/daily-report', (req, res) => {
-  const config = getAgentConfig();
-  const breakerStatus = breaker.getStatus();
-  const riskStatus = riskManager.getStatus();
-  const signals = getSignals(10);
-  const proposals = getProposals();
-  const log = getDecisionLog().slice(0, 20);
-
-  res.json({
-    success: true,
-    date: new Date().toISOString().slice(0, 10),
-    agent: config,
-    circuitBreaker: breakerStatus,
-    risk: riskStatus,
-    recentSignals: signals.length,
-    pendingProposals: proposals.filter(p => p.status === 'pending').length,
-    executedProposals: proposals.filter(p => p.status === 'executed').length,
-    log,
   });
 });
 
