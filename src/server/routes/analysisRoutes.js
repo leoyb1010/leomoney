@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const { 分析交易, 生成Agent总结, 生成决策输入, AGENT_PROMPT } = require('../../../src/analytics/tradeEngine');
 const { getAccount } = require('../services/accountService');
+const { parseBody } = require('../validation');
 
 // ── 原有分析 API ──
 
@@ -97,11 +98,16 @@ router.get('/agent/config', (req, res) => {
 
 router.patch('/agent/config', (req, res) => {
   try {
+    // Validate before mutating: updateAgentConfig does Object.assign(config, updates) and
+    // forwards level→breaker.setLevel (3 = auto-execute) and scanInterval/strategyInterval
+    // into the scheduler, so an unvalidated body could enable auto-trading or break the timers.
+    const parsed = parseBody('agentConfig', req.body || {});
+    if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.error, issues: parsed.issues });
     const { updateAgentConfig } = require('../../../lib/scheduler');
-    const newConfig = updateAgentConfig(req.body);
+    const newConfig = updateAgentConfig(parsed.data);
     res.json({ success: true, config: newConfig });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(400).json({ success: false, error: err.message });
   }
 });
 
@@ -121,10 +127,23 @@ router.get('/agent/strategies', (req, res) => {
 router.post('/agent/strategies/custom', (req, res) => {
   try {
     const { createCustomStrategy } = require('../../../lib/agent/promptTemplates');
-    const strategy = createCustomStrategy(req.body);
+    const body = req.body || {};
+    // Validate the fields createCustomStrategy actually reads, with length caps, so an
+    // unbounded/arbitrary systemPrompt can't be injected as the LLM system prompt.
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    const systemPrompt = typeof body.systemPrompt === 'string' ? body.systemPrompt.trim() : '';
+    if (!name || name.length > 80) {
+      return res.status(400).json({ success: false, error: 'name 必填且不超过 80 字符' });
+    }
+    if (!systemPrompt || systemPrompt.length > 4000) {
+      return res.status(400).json({ success: false, error: 'systemPrompt 必填且不超过 4000 字符' });
+    }
+    const description = typeof body.description === 'string' ? body.description.slice(0, 200) : '';
+    const riskLevel = ['低', '中', '高'].includes(body.riskLevel) ? body.riskLevel : undefined;
+    const strategy = createCustomStrategy({ name, systemPrompt, description, riskLevel });
     res.json({ success: true, strategy });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(400).json({ success: false, error: err.message });
   }
 });
 
